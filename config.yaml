@@ -14,7 +14,7 @@ marker_min_length: 300
 mkblastdb_cmd: makeblastdb
 pw_out: homologies
 pw_stringency: 0.1
-pysuf: ''
+pysuf: '.py'
 python2_bin: ''
 bin: 'scripts/'
 tmp_dir: '~/.tmp'

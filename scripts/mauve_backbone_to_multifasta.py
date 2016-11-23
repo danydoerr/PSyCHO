@@ -46,8 +46,8 @@ def processMauveBackbone(seqData, mauveFile, minLength, unkownSeqPercent,
     isHeader = True
 
     # initialize output handles
-    outFiles = [open('%s.gos' %join(outDir, basename(i).rsplit('.',
-        1)[0], 'w')) for i, _ in seqData]
+    outFiles = [open('%s.gos' %join(outDir, basename(i).rsplit('.', 1)[0]),
+        'w') for i, _ in seqData]
 
     outCount = 0
     for line in csv.reader(open(mauveFile), delimiter='\t'):
