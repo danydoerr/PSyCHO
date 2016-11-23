@@ -1,0 +1,20 @@
+blast_cmd: blastn
+blast_db_endings: [nhd, nhi, nhr, nin, nog, nsd, nsi, nsq]
+blast_db_name: database
+blast_db_type: nucl
+blast_dir: /opt/biotools/ffgc_v0.1/build_ffgc/exe.linux-x86_64-2.7/
+blast_out: blast
+blast_params: -task=blastn -evalue=0.00001
+genome_data_dir: genomes
+mauve_seed_weight: 21
+mauve_cmd: '/opt/biotools/mauve/linux-x64/progressiveMauve'
+mauve_out_dir: 'mauve'
+markers_dir: 'markers'
+marker_min_length: 300
+mkblastdb_cmd: makeblastdb
+pw_out: homologies
+pw_stringency: 0.1
+pysuf: ''
+python2_bin: ''
+bin: 'scripts/'
+tmp_dir: '~/.tmp'
