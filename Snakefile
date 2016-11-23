@@ -45,7 +45,7 @@ rule run_mauve:
         '--output-guide-tree={output.guide_tree} '
         '--backbone-output={output.backbone} '
         '--seed-weight={params.seed_weight} '
-        '--scratch-path-1={params.tmp_dir} {input} 2>1 {log}' 
+        '--scratch-path-1={params.tmp_dir} {input} 2>&1 {log}' 
 
 rule mauve_to_markers:
     input:
@@ -122,5 +122,7 @@ rule run_pairwise_similarities:
 
 rule all:
     input:
-        '%s/genome_map.cfg' %PW_OUT
+        expand('%s/{markers}.gos' %MARKERS_DIR, markers=map(lambda x:
+        basename(x[:x.rfind('.')]), GENOMES))
+#        '%s/genome_map.cfg' %PW_OUT
 
