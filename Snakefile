@@ -45,7 +45,7 @@ rule run_mauve:
         '--output-guide-tree={output.guide_tree} '
         '--backbone-output={output.backbone} '
         '--seed-weight={params.seed_weight} '
-        '--scratch-path-1={params.tmp_dir} {input} 2>&1 {log}' 
+        '--scratch-path-1={params.tmp_dir} {input} > {log}' 
 
 rule mauve_to_markers:
     input:
