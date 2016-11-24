@@ -141,7 +141,7 @@ if __name__ == '__main__':
     ch.setLevel(logging.ERROR)
     ch.setFormatter(logging.Formatter('!! %(message)s'))
     
-    cf = logging.FileHandler('%s.log' %(LOG_FILENAME, mode='w')
+    cf = logging.FileHandler('%s.log' %(LOG_FILENAME, mode='w'))
     cf.setLevel(logging.INFO)
     cf.setFormatter(logging.Formatter('%(levelname)s\t%(asctime)s\t++ %(message)s'))
 
