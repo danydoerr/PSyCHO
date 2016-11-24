@@ -2,17 +2,11 @@
 
 from sys import stdout, stderr, exit
 from optparse import OptionParser
-from os.path import basename, dirname, dirname, join
-from Bio import SeqIO
-import networkx as nx
+from os.path import dirname, join
 import shelve
-import csv
 import re
+
 from psycho import node
-
-from pqr import array2tree, __get_parent__
-
-import sys; import os.path; sys.path.insert(1, '/opt/biotools/ffgc_v0.1/src')
 from pairwise_similarities import readGenomeMap, GENOME_MAP_FILE, \
         GM_ACTV_GNS_KEY, PAT_CHR
 
@@ -42,6 +36,8 @@ if __name__ == '__main__':
             default='.', type='str', help='Directory ' + \
                     'in which the karyotype information is stored ' + \
                     '[default: %default]')
+    parser.add_option('-o', '--output_dir', dest='outDir', type=str,
+            default='.', help='Output directory [default=%default]')
 
     (options, args) = parser.parse_args()
 
@@ -97,9 +93,19 @@ if __name__ == '__main__':
     # load inclusion tree
     #
     root = shObj['inclusion_tree']
-    print >> stderr, '++ loading inclusion tree of genome %s from shelve' %G0
+#    print >> stderr, '++ loading inclusion tree of genome %s from shelve' %G0
     
-    link_out = open('%s_%s.links' %(G0, G1), 'w')
+    suffix = 'main'
+    if options.subInts:
+        suffix = 'sub'
+    elif options.level != -1:
+        suffix = 'level_%s' %options.level
+
+    #
+    # write links
+    #
+    link_out = open(join(options.outDir, '%s_%s_%s.links' %(G0, G1, suffix)),
+            'w')
 
     queue = list(map(lambda x: (x, 1), root.children))
     res = set()
@@ -110,14 +116,12 @@ if __name__ == '__main__':
         u_end = u_start = None
         
         if u.intt[0] in recovered_markers:
-            import pdb; pdb.set_trace() 
             p = g2pos[(ref, u.intt[0])]
             while p > 0 and gene_orders[ref][p] in recovered_markers:
                 p -= 1
             u_start = fa1[gene_orders[ref][p]][1]
 
         if u.intt[1] in recovered_markers:
-            import pdb; pdb.set_trace() 
             p = g2pos[(ref, u.intt[1])]
             while p < len(gene_orders[ref])-1 and gene_orders[ref][p] in recovered_markers:
                 p += 1
@@ -129,7 +133,7 @@ if __name__ == '__main__':
         if u_end == None: 
             u_end = fa1[u.intt[1][1]-1][1]+1
         
-        if u_end -u_start < options.min:
+        if u.intt[1][1]-u.intt[0][1] < options.min:
             continue
 
         hasHit = False
@@ -140,24 +144,19 @@ if __name__ == '__main__':
                     continue
                 v_end = v_start = None
                 if start in recovered_markers:
-                    import pdb; pdb.set_trace() 
                     p = g2pos[(y, start)]
                     while p > 0 and gene_orders[y][p] in recovered_markers:
                         p -= 1
                     v_start = fa2[gene_orders[y][p]][1]
 
                 if end in recovered_markers:
-                    import pdb; pdb.set_trace() 
                     p = g2pos[(ref, end)]
                     while p < len(gene_orders[y])-1 and gene_orders[y][p] in recovered_markers:
                         p += 1
                     v_end = fa2[gene_orders[y][p]][0]
 
                 if v_start == None:
-                    try:
-                        v_start = fa2[start[1]-1][0]
-                    except:
-                        import pdb; pdb.set_trace() 
+                    v_start = fa2[start[1]-1][0]
 
                 if v_end == None: 
                     v_end = fa2[end[1]-1][1]+1
@@ -187,7 +186,8 @@ if __name__ == '__main__':
 
     link_out.close()
 
-    circos_out = open('%s_%s.circos.conf' %(G0, G1), 'w')
+    circos_out = open(join(options.outDir, '%s_%s_%s.circos.conf' %(G0, G1,
+        suffix)), 'w')
 
     print >> circos_out, ('karyotype = %s/karyotype.%s.txt,%s/' + \
             'karyotype.%s.txt') %(options.karyotypeDir, G0,
@@ -211,11 +211,11 @@ if __name__ == '__main__':
     c_max = len(BREWER_COL_RANGE) * len(BREWER_COL)
     if options.colorLinks:
         x = 0
-        for G0, chr0, start0, end0, _, _, start1, end1, in res:
+        for Gx, chrx, startx, endx, _, _, starty, endy, in res:
             r = (x % c_max) / len(BREWER_COL)
             i = (x % c_max) % len(BREWER_COL)
-            print >> circos_out, '%s.%s.%s.%s.%s.%s.l = %s' %(G0, chr0, start0, end0,
-                    start1, end1, BREWER_COL[i] % BREWER_COL_RANGE[r])
+            print >> circos_out, '%s.%s.%s.%s.%s.%s.l = %s' %(Gx, chrx, startx, endx,
+                    starty, endy, BREWER_COL[i] % BREWER_COL_RANGE[r])
             x += 1
     else:
         c_min = len(chr1s) < len(chr2s) and chr1s or chr2s
@@ -249,9 +249,49 @@ if __name__ == '__main__':
     print >> circos_out, 'flow          = continue'
     print >> circos_out, '</rule>\n</rules>'
     print >> circos_out, '</link>\n</links>'
-    print >> circos_out, '<<include ideogram.conf>>'
-    print >> circos_out, '<<include ticks.conf>>'
-    print >> circos_out, '<image>\n<<include etc/image.conf>>\n</image>'
+    print >> circos_out, '<ideogram>'
+    print >> circos_out, '<spacing>'
+    print >> circos_out, 'default = 0.005r'
+    print >> circos_out, '</spacing>'
+    print >> circos_out, 'radius           = 0.92r'
+    print >> circos_out, 'thickness        = 100p'
+    print >> circos_out, 'stroke_thickness = 0'
+    print >> circos_out, 'show_bands            = yes'
+    print >> circos_out, 'fill_bands            = yes'
+    print >> circos_out, 'band_stroke_thickness = 0'
+    print >> circos_out, 'band_transparency     = 1'
+    print >> circos_out, 'show_label       = yes'
+    print >> circos_out, 'label_font       = default'
+    print >> circos_out, 'label_radius     = 1.045r '
+    print >> circos_out, 'label_size       = 60'
+    print >> circos_out, 'label_parallel   = yes'
+    print >> circos_out, '</ideogram>'
+    print >> circos_out, 'show_ticks          = yes'
+    print >> circos_out, 'show_tick_labels    = yes'
+    print >> circos_out, '<ticks>'
+    print >> circos_out, 'radius           = 1r'
+    print >> circos_out, 'color            = black'
+    print >> circos_out, 'thickness        = 2p'
+    print >> circos_out, 'multiplier       = 1e-6'
+    print >> circos_out, 'format           = %d'
+    print >> circos_out, '<tick>'
+    print >> circos_out, 'spacing        = 5u'
+    print >> circos_out, 'size           = 10p'
+    print >> circos_out, '</tick>'
+    print >> circos_out, '<tick>'
+    print >> circos_out, 'spacing        = 25u'
+    print >> circos_out, 'size           = 15p'
+    print >> circos_out, 'show_label     = yes'
+    print >> circos_out, 'label_size     = 20p'
+    print >> circos_out, 'label_offset   = 10p'
+    print >> circos_out, 'format         = %d'
+    print >> circos_out, '</tick>'
+    print >> circos_out, '</ticks>'
+    print >> circos_out, '<image>\nfile  = %s_%s_%s.png' %(G0, G1, suffix)
+    print >> circos_out, 'dir   = .\npng   = yes\nradius         = 1500p' 
+    print >> circos_out, 'angle_offset      = -90'
+    print >> circos_out, 'auto_alpha_colors = yes\nauto_alpha_steps  = 5'
+    print >> circos_out, 'background = white\n</image>'
     print >> circos_out, '<<include etc/colors_fonts_patterns.conf>>'
     print >> circos_out, '<<include etc/colors.brewer.conf>>'
     print >> circos_out, '<<include etc/housekeeping.conf>>'
