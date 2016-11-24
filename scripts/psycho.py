@@ -19,7 +19,6 @@ import os
 #
 # enable import from parent/sibling modules
 #
-import sys; sys.path.insert(1, '/opt/biotools/ffgc_v0.1/src/')
 
 from pairwise_similarities import readDists, reverseDistMap, \
         DIRECTION_CRICK_STRAND, DIRECTION_WATSON_STRAND, \
