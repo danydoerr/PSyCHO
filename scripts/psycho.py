@@ -6,12 +6,14 @@ from itertools import izip, combinations, product, chain
 from os.path import basename, abspath
 from optparse import OptionParser
 from collections import deque
+from tempfile import mkdtemp
 from bisect import insort
 from Queue import Empty
 from math import sqrt
 import networkx as nx
 import logging
 import shelve
+import os
 
 
 #
@@ -1090,8 +1092,9 @@ if __name__ == '__main__':
                 subtree.parent = root
 
     LOG.info('DONE! writing hierarchy..')
-    shObj = shelve.open('hierarchy_d%s.shelve' %(options.delta), flag='c',
-            protocol=-1)
+    tmp = mkdtemp()
+    shName = '%s/hierarchy.shelve' %tmp
+    shObj = shelve.open(shName, flag='n', protocol=-1)
     shObj['orig_pw_dists'] = map(abspath, args)
     shObj['ref'] = ref
     shObj['genomes'] = id2genomes 
@@ -1102,4 +1105,10 @@ if __name__ == '__main__':
 
     shObj.sync()
     shObj.close()
+
+    out = open(shName, 'r')
+    
+    stdout.write(out.read())
+    os.unlink(shName)
+    os.rmdir(tmp)
 

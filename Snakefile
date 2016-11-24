@@ -30,14 +30,30 @@ PW_SIMS = ['%s/%s_%s.sim' %(PW_OUT, x[0], x[1]) for x in
 chain(combinations((basename(y[:y.rfind('.')]) for y in GENOMES), 2),
 zip(*repeat([basename(y[:y.rfind('.')]) for y in GENOMES], 2)))]
 
+REF = basename(GENOMES[int(config['psycho_ref'])].rsplit('.', 1)[0])
+HIERARCHY_OUT = '%s/%s_psycho_d%s_ref_%s' %(config['psycho_out'],
+basename(PW_OUT), config['psycho_delta'], REF)
+
+CIRCOS_CMD = config['circos_cmd']
+CIRCOS_PLOT_SUFFIX = config['pwsynteny_plot_params'].find('-s') < 0 and 'main' or 'sub'
+
 #
 # MAIN RULE
 #
 
 rule all:
     input:
-        '%s/genome_map.cfg' %PW_OUT,
-        PW_SIMS
+#        '%s/%s_BAPHI_%s.circos.conf' %(HIERARCHY_OUT,  REF,
+#        CIRCOS_PLOT_SUFFIX),
+#        '%s/hierarchy_d%s.shelve' %(HIERARCHY_OUT,  config['psycho_delta'])
+        expand('%s/%s_{target}_%s.png' %(HIERARCHY_OUT,  REF,
+        CIRCOS_PLOT_SUFFIX),
+        target=[basename(GENOMES[x][:GENOMES[x].rfind('.')]) for x in
+        range(len(GENOMES)) if x != config['psycho_ref']])
+#        expand('%s/%s_{target}_%s.links' %(HIERARCHY_OUT,  REF,
+#        CIRCOS_PLOT_SUFFIX),
+#        target=[basename(GENOMES[x][:GENOMES[x].rfind('.')]) for x in
+#        range(len(GENOMES)) if x != config['psycho_ref']])
 
 rule run_mauve:
     input:
@@ -119,8 +135,73 @@ rule run_pairwise_similarities:
     output:
         pw_sims = PW_SIMS, 
         genome_map = '%s/genome_map.cfg' %PW_OUT
+    log:
+        'pairwise_similarities.log'
     shell:
         PYEXEC + 'pairwise_similarities' + PYSUF + ' -n2 -S -s '
         '{params.stringency} -f {params.gos_dir} -o {params.out_dir} {input}'
 
+rule run_psycho:
+    input:
+        PW_SIMS
+    params:
+        delta = config['psycho_delta'],
+        reference = REF
+    threads:
+        64
+    output:
+        '%s/hierarchy_d%s.shelve' %(HIERARCHY_OUT, config['psycho_delta'])
+    log:
+        'psycho_d%s.log' %config['psycho_delta']
+    shell:
+        PYEXEC + 'psycho' + PYSUF + ' -d {params.delta} -r '
+        '{params.reference} {input} > {output}'
 
+rule create_karyotypes:
+    input:
+        genome = '%s/{genome}.fna' %GENOMES_DIR,
+        markers = '%s/{genome}.gos' %MARKERS_DIR
+    output:
+        '%s/karyotype.{genome}.txt' %HIERARCHY_OUT
+    log:
+        '%s/karyotype.{genome}.log' %HIERARCHY_OUT
+    shell:
+        PYEXEC + 'syn2circos.karyotype' + PYSUF + ' {input.genome} '
+        '{input.markers} > {output} 2> {log}'
+
+rule generate_circos_files:
+    input:
+        shelve = '%s/hierarchy_d%s.shelve' %(HIERARCHY_OUT,
+        config['psycho_delta']),
+        markers = '%s/{genome}.gos' %MARKERS_DIR
+    params:
+        karyotype_dir = HIERARCHY_OUT,
+        plot_params = config['pwsynteny_plot_params'],
+        out_dir = HIERARCHY_OUT
+    output:
+        '%s/%s_{genome}_%s.circos.conf' %(HIERARCHY_OUT, REF,
+        CIRCOS_PLOT_SUFFIX),
+        '%s/%s_{genome}_%s.links' %(HIERARCHY_OUT, REF, CIRCOS_PLOT_SUFFIX),
+    run:
+        shell(PYEXEC + 'inctree2pwsynteny' + PYSUF + ' -k {params.karyotype_dir} ' 
+        '-o {params.out_dir} {params.plot_params} {input.shelve} ' + 
+        basename(input.markers).rsplit('.')[0])
+
+rule run_circos:
+    input:
+        circos_conf = '%s/%s_{genome}_%s.circos.conf' %(HIERARCHY_OUT, REF,
+        CIRCOS_PLOT_SUFFIX),
+        links = '%s/%s_{genome}_%s.links' %(HIERARCHY_OUT, REF,
+        CIRCOS_PLOT_SUFFIX),
+        ref_karyotype = '%s/karyotype.%s.txt' %(HIERARCHY_OUT, REF),
+        target_karyotype = '%s/karyotype.{genome}.txt' %HIERARCHY_OUT 
+    params:
+        out_dir = HIERARCHY_OUT
+    output:
+        '%s/%s_{genome}_%s.png' %(HIERARCHY_OUT,  REF, CIRCOS_PLOT_SUFFIX)
+    log:
+        '%s/%s_{genome}_%s.log' %(HIERARCHY_OUT,  REF, CIRCOS_PLOT_SUFFIX)
+    shell:
+        CIRCOS_CMD + ' -conf {input.circos_conf} -outputdir {params.out_dir} '
+        '2> {log}'
+        

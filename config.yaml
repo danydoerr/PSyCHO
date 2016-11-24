@@ -5,6 +5,7 @@ blast_db_type: nucl
 blast_dir: /opt/biotools/ffgc_v0.1/build_ffgc/exe.linux-x86_64-2.7/
 blast_out: blast
 blast_params: -task=blastn -evalue=0.00001
+circos_cmd: /opt/biotools/circos/bin/circos
 genome_data_dir: genomes
 mauve_seed_weight: 21
 mauve_cmd: '/opt/biotools/mauve/linux-x64/progressiveMauve'
@@ -16,5 +17,9 @@ pw_out: homologies
 pw_stringency: 0.1
 pysuf: '.py'
 python2_bin: ''
+psycho_out: 'hierarchies'
+psycho_delta: 15
+psycho_ref: 0
+pwsynteny_plot_params: '-m 10 -c' # add -s to plot sublevels
 bin: 'scripts/'
 tmp_dir: '~/.tmp'
