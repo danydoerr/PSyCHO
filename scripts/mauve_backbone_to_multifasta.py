@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from sys import stdout,stderr,exit
+from sys import stdout,stderr,exit, argv
 from optparse import OptionParser
 from os.path import basename, join
 from itertools import combinations
