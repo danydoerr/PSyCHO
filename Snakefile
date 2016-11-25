@@ -118,11 +118,14 @@ rule run_blast:
         blast_params = config['blast_params']
     output:
         BLAST_OUT + '/{markers}.gos.blasttbl'
+    log:
+        BLAST_OUT + '/blastn.log'
     threads: 
         8 
     shell:
-        join(BLAST_DIR, config['blast_cmd']) + ' -db {params.dbname} -outfmt 6 -num_threads ' +
-        '{threads} {params.blast_params} < {input.markers_file} > {output}'
+        join(BLAST_DIR, config['blast_cmd']) + ' -db {params.dbname} -outfmt 6'
+        ' -num_threads ' + '{threads} {params.blast_params} < '
+        '{input.markers_file} > {output} 2> {log}'
 
 rule run_pairwise_similarities:
     input:
