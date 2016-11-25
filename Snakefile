@@ -1,7 +1,7 @@
 configfile: 'config.yaml'
 
 from glob import glob
-from os.path import basename
+from os.path import basename, join
 from itertools import combinations, repeat, chain
 
 PYEXEC = ' '.join(filter(None, [config['python2_bin'], config['bin']]))
@@ -104,7 +104,7 @@ rule create_blast_db:
     log:
         '%s/%s.log' %(config['blast_out'], config['blast_db_name'])
     shell:
-        BLAST_DIR + config['mkblastdb_cmd'] + ' -in \"{input}\" -hash_index '
+        join(BLAST_DIR, config['mkblastdb_cmd']) + ' -in \"{input}\" -hash_index '
         '-out {params.dbname} -dbtype {params.dbtype} -title '
         '\"{params.title}\" -logfile {log}'
 
@@ -121,7 +121,7 @@ rule run_blast:
     threads: 
         8 
     shell:
-        BLAST_DIR + config['blast_cmd'] + ' -db {params.dbname} -outfmt 6 -num_threads ' +
+        join(BLAST_DIR, config['blast_cmd']) + ' -db {params.dbname} -outfmt 6 -num_threads ' +
         '{threads} {params.blast_params} < {input.markers_file} > {output}'
 
 rule run_pairwise_similarities:
