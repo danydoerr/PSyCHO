@@ -76,7 +76,7 @@ def parseMauveBackbone(seqData, chr_locations, mauveFile, minLength, quorum):
 
             if end-start <= 0:
                 LOG.warning(('sequence length of segment %s[%s:%s] is %s in' + \
-                        ' line: \n\t\t%s') %(genomeNames[i], line[i*2], line[i*2+1],
+                        ' line: \n\t\t%s') %(ident, line[i*2], line[i*2+1],
                             end-start-1, '\t'.join(line)))
 
             if end-start-1 < minLength:
