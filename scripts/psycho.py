@@ -201,6 +201,7 @@ def division(L, G, B, ref):
     cur = Y1.head
     while cur != None:
         nxt = cur.next
+
         if cur.data[1] in SigmaX1:
             v = (ref, cur.data[1])
             cids = [u for u, _ in G.neighbors(v)]
@@ -209,7 +210,8 @@ def division(L, G, B, ref):
                         'all genomes') %str(v))
                 Y1.pop(cur)
                 G.remove_node(v)
-            elif x != ref and cids.count(x) > 1:
+            elif x != ref and cids.count(x) > 1 and not Bset.issuperset(z[1] \
+                    for z in G.neighbors(v) if z[0] == x):
                 X1.add(cur.data)
                 for u in G.neighbors(v):
                     if u[0] != x:
@@ -609,7 +611,7 @@ def constructCIDS(L, G, ref, delta):
     return gene_orders, pos, bounds
 
 
-def getCharEnvJ(pos2, My, ref, i, j, p, stop_at_left_bound=None):
+def getCharEnvJ(pos2, My, i, j, p, stop_at_left_bound=None):
 
     k = p 
     l = p+1
@@ -618,7 +620,8 @@ def getCharEnvJ(pos2, My, ref, i, j, p, stop_at_left_bound=None):
     DELAYED = set()
 
     left_bound = max(stop_at_left_bound or 0, 0)
-    while k >= left_bound and My[k] < len(pos2[k]) and pos2[k][My[k]]<= j:
+    while k >= left_bound and My[k] < len(pos2[k]) and pos2[k][-1] >= i and \
+            pos2[k][My[k]]<= j:
         x = My[k]
         while x < len(pos2[k]) and pos2[k][x] <= j:
             if pos2[k][x] > cj:
@@ -628,7 +631,8 @@ def getCharEnvJ(pos2, My, ref, i, j, p, stop_at_left_bound=None):
             DELAYED.remove(cj+1)
             cj += 1
 
-        while l < len(pos2) and My[l] < len(pos2[l]) and pos2[l][My[l]]<= j:
+        while l < len(pos2) and My[l] < len(pos2[l]) and pos2[l][-1] >= i and \
+                pos2[l][My[l]]<= j:
             x = My[l]
             while x < len(pos2[l]) and pos2[l][x] <= j:
                 if pos2[l][x] > cj:
@@ -639,32 +643,32 @@ def getCharEnvJ(pos2, My, ref, i, j, p, stop_at_left_bound=None):
                 cj += 1
             l += 1
         k -= 1
-    return k, l, cj
+    return cj
 
 
-def getCharEnvI(pos2, ref, i, j, p, stop_at_left_bound=None):
+def getCharEnvI(pos2, i, j, p, stop_at_left_bound=None):
 
-    k = p
+    k = p 
     l = p+1
 
     ci = j+1
     DELAYED = set()
 
     left_bound = max(stop_at_left_bound or 0, 0)
-    while k >= left_bound and len(pos2[k]) and pos2[k][0] <= j:
+    while k >= left_bound and len(pos2[k]) and pos2[k][-1] >= i and pos2[k][0] <= j:
         x = 0
         while x < len(pos2[k]) and pos2[k][x] <= j:
-            if pos2[k][x] < ci:
+            if pos2[k][x] >= i and pos2[k][x] < ci:
                 DELAYED.add(pos2[k][x])
             x += 1
         while ci - 1 in DELAYED:
             DELAYED.remove(ci-1)
             ci -= 1
 
-        while l < len(pos2) and len(pos2[l]) and pos2[l][0] <= j:
+        while l < len(pos2) and len(pos2[l]) and pos2[l][-1] >= i and pos2[l][0] <= j:
             x = 0 
             while x < len(pos2[l]) and pos2[l][x] <= j:
-                if pos2[l][x] < ci:
+                if pos2[l][x] >= i and pos2[l][x] < ci:
                     DELAYED.add(pos2[l][x])
                 x += 1
             while ci - 1 in DELAYED:
@@ -672,47 +676,101 @@ def getCharEnvI(pos2, ref, i, j, p, stop_at_left_bound=None):
                 ci -= 1
             l += 1
         k -= 1
-    return k, l, ci
+    return ci
 
 
-def getCharsetsJ(pos, M, ids, ref, i, p_set = None):
+def getWitness(pos2, i, j, p, My=None, stop_at_left_bound=None):
+    
+    CHAR = [0] * (j-i+1)
+    c = 0
 
-    prev_j = maxint
-    j = maxint-1
+    k = p 
+    l = p+1
+
+    left_bound = max(stop_at_left_bound or 0, 0)
+    while k >= left_bound and len(pos2[k]) and pos2[k][0]<= j:
+        x = My!=None and My[k] or 0
+        while x < len(pos2[k]) and pos2[k][x] <= j:
+            if pos2[k][x] >= i and not CHAR[j-pos2[k][x]]:
+                CHAR[j-pos2[k][x]] = 1
+                c += 1
+            x += 1
+        if x < 1 or pos2[k][x-1] < i:
+            break
+        k -= 1
+
+    while l < len(pos2) and len(pos2[l]) and pos2[l][0] <= j:
+        x = My!=None and My[l] or 0
+        while x < len(pos2[l]) and pos2[l][x] <= j:
+            if pos2[l][x] >= i and not CHAR[j-pos2[l][x]]:
+                CHAR[j-pos2[l][x]] = 1
+                c += 1
+            x += 1
+        if x < 1 or pos2[l][x-1] < i:
+            break
+        l += 1
+
+    if c != j-i+1:
+        low_i = j
+        while low_i >= i and CHAR[j-low_i]:
+            low_i -= 1
+        high_j = i
+        while high_j <= j and CHAR[j-high_j]:
+            high_j += 1
+        k, l, i, j = 0, -1, low_i+1, high_j-1
+        
+    return (k, l, i, j)
+
+
+def getCharsetsJ(pos, M, ids, ref, i, j_max = None, p_set = None, enforce_same_j=False):
+
+    j = j_max == None and maxint-1 or j_max
+    prev_j =  j+1
     charsets = None
     while prev_j > j  and i < j:
         prev_j = j
         charsets = [list() for _ in ids]
-        jys = [0] * len(ids)
+        jys = [list() for _ in ids]
         for y in xrange(len(ids)):
-            prev_p = -1
             if p_set != None:
                 ps = p_set[y]
             else:
                 ps = pos[(ref, ids[y])][i]
+            prev_p = -1
             for p in ps:
-                if p +1 > prev_p:
-                    k, l, jp = getCharEnvJ(pos[(ids[y], ref)], M[ids[y]], ref,
-                            i, j, p, stop_at_left_bound=prev_p)
-                if p+1 != prev_p or k > prev_p:
+                k, l = 0, -1
+                if p-1 > prev_p:
+                    jp = j
+                    while l-k-1 < 1:
+                        jp = getCharEnvJ(pos[(ids[y], ref)], M[ids[y]], i, jp,
+                                p, stop_at_left_bound=prev_p)
+                        k, l, _, jp = getWitness(pos[(ids[y], ref)], i, jp, p,
+                                My=M[ids[y]], stop_at_left_bound=prev_p)
+                if p-1 != prev_p or k > prev_p:
                     charsets[y].append((p, k+1, l-1, jp))
-                    jys[y]  = max(jys[y], jp)
+                    jys[y].append(jp)
                 else:
                     charsets[y].append(charsets[y][-1])
+                    jys[y].append(jys[y][-1])
                 prev_p = p
-        j = min(jys)
+        
+        if enforce_same_j:
+            j = min(map(min, jys))
+        else:
+            j = min(map(max, jys))
     return j, charsets
 
 
-def getCharsetsI(pos, ids, ref, j, p_set = None):
+def getCharsetsI(pos, ids, ref, j, i_min=None, p_set=None,
+        enforce_same_i=False):
 
-    prev_i = -2
-    i = -1
+    i = i_min != None and i_min or 0
+    prev_i = i-1
     charsets = None
     while prev_i < i  and i <= j:
         prev_i = i
         charsets = [list() for _ in ids]
-        iys = [maxint] * len(ids)
+        iys = [list() for _ in ids]
         for y in xrange(len(ids)):
             prev_p = -1
             if p_set != None:
@@ -720,16 +778,26 @@ def getCharsetsI(pos, ids, ref, j, p_set = None):
             else:
                 ps = pos[(ref, ids[y])][j]
             for p in ps:
+                k, l = 0, -1
                 if p +1 > prev_p:
-                    k, l, ip = getCharEnvI(pos[(ids[y], ref)], ref, i, j, p,
-                            stop_at_left_bound=prev_p)
+                    ip = i
+                    while l-k-1 < 1:
+                        ip = getCharEnvI(pos[(ids[y], ref)], ip, j, p,
+                                stop_at_left_bound=prev_p)
+                        k, l, ip, _ = getWitness(pos[(ids[y], ref)], ip, j, p,
+                                stop_at_left_bound=prev_p)
                 if p+1 != prev_p or k > prev_p:
                     charsets[y].append((p, k+1, l-1, ip))
-                    iys[y]  = min(iys[y], ip)
+                    iys[y].append(ip)
                 else:
                     charsets[y].append(charsets[y][-1])
+                    iys[y].append(iys[y][-1])
                 prev_p = p
-        i = max(iys)
+
+        if enforce_same_i:
+            i = max(map(max, iys))
+        else:
+            i = max(map(min, iys))
     return i, charsets
 
 
@@ -755,24 +823,25 @@ def getIntervals(pos, n, ref, start=None, end=None, M=None):
         #
         # enumerate largest intervals containing characters larger equal to i
         #
-        i_min, i_charsets = getCharsetsI(pos, ids, ref, i)
-        j_max, j_charsets = getCharsetsJ(pos, M, ids, ref, i)
-        ii = i_min
-        j = j_max 
+
+        ip, i_charsets = getCharsetsI(pos, ids, ref, i)
+        j, j_charsets = getCharsetsJ(pos, M, ids, ref, i)
 
         hits = [[False] * len(x) for x in j_charsets]
         while i < j and not all(map(all, hits)):
             p_set = [[j_charsets[y][p][0] for p in xrange(len(j_charsets[y])) if
                 not hits[y][p] and j_charsets[y][p][3] >= j] for y in
                 xrange(len(j_charsets))]
-           
-            jp, jp_charsets = getCharsetsJ(pos, M, ids, ref, i, p_set = p_set)
+          
+            jp, jp_charsets = getCharsetsJ(pos, M, ids, ref, i, j_max=j,
+                    p_set=p_set, enforce_same_j=True)
 
             if jp == j:
-                ip = ii - 1
-                while ii != ip:
-                    ii = ip
-                    ip, ip_charsets = getCharsetsI(pos, ids, ref, i, p_set = p_set)
+                prev_i = ip-1
+                while prev_i != ip:
+                    prev_i = ip
+                    ip, ip_charsets = getCharsetsI(pos, ids, ref, i, i_min=ip,
+                            p_set=p_set, enforce_same_i=True)
                 
 
                 # add identified common intervals to result list
@@ -783,6 +852,7 @@ def getIntervals(pos, n, ref, start=None, end=None, M=None):
                                 jp_charsets[y][z+1] and ip_charsets[y][z] == \
                                 ip_charsets[y][z+1]:
                             continue
+
                         res_i.append((ids[y], ip_charsets[y][z][1],
                             ip_charsets[y][z][2], jp_charsets[y][z][1],
                             jp_charsets[y][z][2]))
@@ -1034,11 +1104,13 @@ if __name__ == '__main__':
     g_counter = [go[-2][1] for go in gene_orders]
     new_markers = [list() for _ in id2genomes]
 
-    for L, G in teams:
+    for z in xrange(len(teams)):
+        L, G = teams[z]
         if all(len(set(x)) > 1 for x in L):
 #            L, G, gene_orders, dists, g2pos, g_counter, new_markers = fixIndels(L, G, \
 #                    gene_orders, g2pos, dists, g_counter, new_markers, \
 #                    id2genomes, ref, options.delta)
+#
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
             if len(set(map(len, bounds))) != 1:
                 continue
@@ -1082,6 +1154,7 @@ if __name__ == '__main__':
                 cis = getIntervals(pos, len(id2genomes), ref)
 
             strong_cis = identifyStrongIntervals(cis, ref)
+
             CI_instances.append((gos, strong_cis))
             subtrees = constructInclusionTree(strong_cis, pos, gos, bounds,
                     len(id2genomes), ref)
