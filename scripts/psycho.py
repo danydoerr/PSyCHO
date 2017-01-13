@@ -1115,9 +1115,6 @@ if __name__ == '__main__':
 #                    gene_orders, g2pos, dists, g_counter, new_markers, \
 #                    id2genomes, ref, options.delta)
 #
-            if L[0].head.data[1][0] != '3R_DMEL' or \
-                    L[2].head.data[1][0] != '3R_DYAK' or len(list(L[0])) <= 50:
-                continue
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
             if len(set(map(len, bounds))) != 1:
                 continue
