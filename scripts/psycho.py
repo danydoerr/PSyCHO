@@ -7,7 +7,7 @@ from os.path import basename, abspath
 from optparse import OptionParser
 from collections import deque
 from tempfile import mkdtemp
-from bisect import insort
+from bisect import bisect, insort
 from Queue import Empty
 from math import sqrt
 import networkx as nx
@@ -599,7 +599,9 @@ def constructCIDS(L, G, ref, delta):
                 if g2pos.has_key((ref, gi)):
                     pref = g2pos[(ref, gi)]
                     pos[(x, ref)][-1].append(pref)
-                    insort(pos[(ref, x)][pref], p)
+                    z = bisect(pos[(ref, x)][pref], p)
+                    if not z or pos[(ref, x)][pref][z-1] != p:
+                        pos[(ref, x)][pref].insert(z, p)
             p += 1 
             prev = cur.data[0]
             cur = cur.next
@@ -750,7 +752,8 @@ def getCharsetsJ(pos, M, ids, ref, i, j_max = None, p_set = None, enforce_same_j
                     charsets[y].append((p, k+1, l-1, jp))
                     jys[y].append(jp)
                 else:
-                    charsets[y].append(charsets[y][-1])
+                    _, _k, _l, _jp = charsets[y][-1]
+                    charsets[y].append((p, _k, _l, _jp))
                     jys[y].append(jys[y][-1])
                 prev_p = p
         
@@ -812,6 +815,7 @@ def getIntervals(pos, n, ref, start=None, end=None, M=None):
     end = end == None and len(pos[(ref, ids[0])]) or end
 
     # iterating through each position between i and end in the reference 
+
     while i < end:
 
         # do not start at an empty position
@@ -1111,6 +1115,9 @@ if __name__ == '__main__':
 #                    gene_orders, g2pos, dists, g_counter, new_markers, \
 #                    id2genomes, ref, options.delta)
 #
+            if L[0].head.data[1][0] != '3R_DMEL' or \
+                    L[2].head.data[1][0] != '3R_DYAK' or len(list(L[0])) <= 50:
+                continue
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
             if len(set(map(len, bounds))) != 1:
                 continue
