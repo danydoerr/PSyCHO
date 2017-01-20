@@ -41,8 +41,9 @@ LOG_FILENAME = '%s' %basename(argv[0]).rsplit('.py', 1)[0]
 
 class node(object):
     def __init__(self, left_b, right_b, type=None, parent=None, children=None,
-            links=None):
+            links=None,id=None):
         self.intt = (left_b, right_b)
+        self.id = id
         self.type = type
         self.parent = parent
         self.links = links or list()
@@ -1108,6 +1109,8 @@ if __name__ == '__main__':
     g_counter = [go[-2][1] for go in gene_orders]
     new_markers = [list() for _ in id2genomes]
 
+    goss = list()
+    strong_ciss = list()
     for z in xrange(len(teams)):
         L, G = teams[z]
         if all(len(set(x)) > 1 for x in L):
@@ -1158,10 +1161,13 @@ if __name__ == '__main__':
                 cis = getIntervals(pos, len(id2genomes), ref)
 
             strong_cis = identifyStrongIntervals(cis, ref)
-
-            CI_instances.append((gos, strong_cis))
             subtrees = constructInclusionTree(strong_cis, pos, gos, bounds,
                     len(id2genomes), ref)
+
+            for st in subtrees:
+                st.id = len(goss)
+            goss.append(gos)
+            strong_ciss.append(strong_cis)
 
             root.children.extend(subtrees)
             for subtree in subtrees:
@@ -1176,8 +1182,8 @@ if __name__ == '__main__':
     shObj['genomes'] = id2genomes 
     shObj['inclusion_tree'] = root
     shObj['recovered_markers'] = new_markers
-    shObj['gene_orders'] = gene_orders 
-    shObj['intervals'] = CI_instances
+    shObj['gene_orders'] = goss
+    shObj['intervals'] = strong_ciss
 
     shObj.sync()
     shObj.close()
