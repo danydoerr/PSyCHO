@@ -167,8 +167,6 @@ if __name__ == '__main__':
 
 
                 if end[1]-start[1]+1 >= options.min:
-#                    if (v_end-v_start)/(u_end-u_start) >= 2:
-#                        import pdb; pdb.set_trace() 
                     link = (G0.lower(), u.intt[0][0].lower(), u_start, u_end,\
                             genomes[y].lower(), start[0].lower(), v_start, \
                             v_end)

@@ -3,6 +3,7 @@
 from sys import stdout, stderr, exit, argv
 from os.path import basename 
 from Bio import SeqIO
+from cStringIO import StringIO
 import re
 
 
@@ -19,26 +20,32 @@ if __name__ == '__main__':
     chr_lengths = dict()
     for rec in SeqIO.parse(argv[1], 'fasta'):
         sid = rec.id.replace('|', '.').lower()
-        print 'chr - %s.%s %s.%s %s %s %s.%s' %(gid.lower(), sid, gid, sid, 0,
-                len(rec), gid.lower(), sid)
         chr_lengths[sid] = len(rec)
 
     prev = 0
     prevC = None
     c = 0
+    out = StringIO()
     for rec in SeqIO.parse(argv[2], 'fasta'):
-        if rec.description.find('[inactivate]') >= 0:
-            continue
 
         chr1 = CHR_PAT.match(rec.description).group(1).lower()
+        if not chr_lengths.has_key(chr1):
+            chr_lengths[chr1] = 0
 
         mpos = POS_PAT.match(rec.description)
         start = int(mpos.group(1))
         end = int(mpos.group(2))+1
+        if end < start:
+            print >> stderr, 'Segment %s has negative length. Skipping.' %rec.description
+            continue
+
+        if end > chr_lengths[chr1]:
+            chr_lengths[chr1] = end
+
         if prevC != None and prevC != chr1:
             if chr_lengths[prevC]-prev > 0:
                 bid = '%s.%s.no_seg%s' %(gid.lower(), prevC, c)
-                print 'band %s.%s %s %s %s %s %s.no_seg' %(gid.lower(),
+                print >> out, 'band %s.%s %s %s %s %s %s.no_seg' %(gid.lower(),
                         prevC.lower(), bid, bid, prev, chr_lengths[prevC],
                         gid.lower())
                 c += 1
@@ -46,7 +53,7 @@ if __name__ == '__main__':
         prevC = chr1
         if start-prev > 0:
             bid = '%s.%s.no_seg%s' %(gid.lower(), prevC, c)
-            print 'band %s.%s %s %s %s %s %s.no_seg' %(gid.lower(),
+            print >> out, 'band %s.%s %s %s %s %s %s.no_seg' %(gid.lower(),
                     prevC.lower(), bid, bid, prev, start,
                     gid.lower())
             c += 1
@@ -59,17 +66,21 @@ if __name__ == '__main__':
                 start = prev
 
 
-        if end > chr_lengths[chr1]:
-            end = chr_lengths[chr1]
-
         bid = '%s.%s' %(gid.lower(),
                 rec.description[:rec.description.find('|')].lower())
-        print 'band %s.%s %s %s %s %s %s.seg' %(gid.lower(), chr1, bid,
+        print >> out, 'band %s.%s %s %s %s %s %s.seg' %(gid.lower(), chr1, bid,
                 bid, start, end, gid.lower())
         prev = end
 
     if chr_lengths[prevC]-prev > 0:
         bid = '%s.%s.no_seg%s' %(gid.lower(), prevC, c)
-        print 'band %s.%s %s %s %s %s %s.no_seg' %(gid.lower(),
+        print >> out, 'band %s.%s %s %s %s %s %s.no_seg' %(gid.lower(),
                 prevC.lower(), bid, bid, prev, chr_lengths[prevC],
                 gid.lower())
+
+    for sid in sorted(chr_lengths.keys()):
+        print 'chr - %s.%s %s.%s %s %s %s.%s' %(gid.lower(), sid, gid, sid, 0,
+                chr_lengths[sid], gid.lower(), sid)
+    print out.getvalue()
+
+
