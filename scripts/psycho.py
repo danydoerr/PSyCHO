@@ -1104,10 +1104,9 @@ if __name__ == '__main__':
 
     CI_instances = list()
 
-    root = node(gene_orders[ref][1], gene_orders[ref][-2])
-
     g_counter = [go[-2][1] for go in gene_orders]
     new_markers = [list() for _ in id2genomes]
+    root = node(gene_orders[ref][1], gene_orders[ref][-2])
 
     goss = list()
     strong_ciss = list()
@@ -1172,6 +1171,18 @@ if __name__ == '__main__':
             root.children.extend(subtrees)
             for subtree in subtrees:
                 subtree.parent = root
+
+#    covered_markers = set(chain(*(gene_orders[ref][g2pos[ref][u.intt[0]]: \
+#        g2pos[ref][u.intt[1]]+1] for u in root.children)))
+#    singletons = set(gene_orders[1:-2]).difference(covered_markers)
+#
+#    i = 0
+#    for g1i in singletons:
+#        while g2pos[ref][u.children[i].intt[1]] > g2pos[
+   
+#    import pdb; pdb.set_trace() 
+    if len(root.children) == 1 and root.intt == root.children[0].intt:
+        root = root.children[0]
 
     LOG.info('DONE! writing hierarchy..')
     tmp = mkdtemp()
