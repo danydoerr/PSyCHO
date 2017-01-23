@@ -1116,6 +1116,7 @@ if __name__ == '__main__':
 #                    id2genomes, ref, options.delta)
 #
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
+
             if len(set(map(len, bounds))) != 1:
                 continue
 
