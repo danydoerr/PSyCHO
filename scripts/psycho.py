@@ -580,6 +580,7 @@ def constructCIDS(L, G, ref, delta):
         pos[(ref, y)].append(list())
 
     for x in ids:
+
         Gx = list()
         p = 0
         prev = -delta
@@ -816,7 +817,6 @@ def getIntervals(pos, n, ref, start=None, end=None, M=None):
     end = end == None and len(pos[(ref, ids[0])]) or end
 
     # iterating through each position between i and end in the reference 
-
     while i < end:
 
         # do not start at an empty position
@@ -1181,9 +1181,9 @@ if __name__ == '__main__':
 #    for g1i in singletons:
 #        while g2pos[ref][u.children[i].intt[1]] > g2pos[
    
-#    import pdb; pdb.set_trace() 
     if len(root.children) == 1 and root.intt == root.children[0].intt:
         root = root.children[0]
+        root.parent = None
 
     LOG.info('DONE! writing hierarchy..')
     tmp = mkdtemp()
