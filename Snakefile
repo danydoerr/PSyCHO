@@ -8,7 +8,7 @@ PYEXEC = ' '.join(filter(None, [config['python2_bin'], config['bin']]))
 PYSUF = config['pysuf']
 
 GENOMES_DIR = config['genome_data_dir']
-GENOMES = glob('%s/*.fna' %GENOMES_DIR)
+GENOMES = sorted(glob('%s/*.fna' %GENOMES_DIR))
 
 MAUVE_CMD = config['mauve_cmd']
 MAUVE_OUT = '%s/%s_sw%s' %(config['mauve_out_dir'], basename(MAUVE_CMD),

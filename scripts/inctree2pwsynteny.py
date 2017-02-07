@@ -3,6 +3,7 @@
 from sys import stdout, stderr, exit
 from optparse import OptionParser
 from os.path import dirname, join
+from itertools import izip
 import shelve
 import re
 
@@ -69,11 +70,8 @@ if __name__ == '__main__':
     id1 = genomes2id[G1]
 
     gene_orders = shObj['gene_orders']
-
-    g2pos = dict()
-    for x in xrange(len(gene_orders)):
-        for i in xrange(len(gene_orders[x])):
-            g2pos[(x, gene_orders[x][i])] = i
+    g2pos = [[dict(izip(go, xrange(len(go)))) for go in gos] for gos in \
+            gene_orders]
 
     recovered_markers = shObj['recovered_markers']
 
@@ -107,74 +105,80 @@ if __name__ == '__main__':
     link_out = open(join(options.outDir, '%s_%s_%s.links' %(G0, G1, suffix)),
             'w')
 
-    queue = list(map(lambda x: (x, 1), root.children))
+    queue = [(root, None, 1)]
     res = set()
     level = dict()
     while queue:
-        u, u_depth = queue.pop()
+        u, u_id, u_depth = queue.pop()
 
-        u_end = u_start = None
-        
-        if u.intt[0] in recovered_markers:
-            p = g2pos[(ref, u.intt[0])]
-            while p > 0 and gene_orders[ref][p] in recovered_markers:
-                p -= 1
-            u_start = fa1[gene_orders[ref][p]][1]
-
-        if u.intt[1] in recovered_markers:
-            p = g2pos[(ref, u.intt[1])]
-            while p < len(gene_orders[ref])-1 and gene_orders[ref][p] in recovered_markers:
-                p += 1
-            u_end = fa1[gene_orders[ref][p]][0]
-
-        if u_start == None:
-            u_start = fa1[u.intt[0][1]-1][0]
-
-        if u_end == None: 
-            u_end = fa1[u.intt[1][1]-1][1]+1
-        
-        if u.intt[1][1]-u.intt[0][1] < options.min:
-            continue
+        if u.id != None:
+            u_id = u.id
 
         hasHit = False
+        if u_id != None:
+            u_end = u_start = None
 
-        if u.links:
-            for (y, start, end) in u.links:
-                if y != id1:
-                    continue
-                v_end = v_start = None
-                if start in recovered_markers:
-                    p = g2pos[(y, start)]
-                    while p > 0 and gene_orders[y][p] in recovered_markers:
-                        p -= 1
-                    v_start = fa2[gene_orders[y][p]][1]
+            gos = gene_orders[u_id]
+            gos2pos = g2pos[u_id]
+            if u.intt[0] in recovered_markers:
+                p = gos2pos[(ref, u.intt[0])]
+                while p > 0 and gos[ref][p] in recovered_markers:
+                    p -= 1
+                u_start = fa1[gos[ref][p]][1]
 
-                if end in recovered_markers:
-                    p = g2pos[(ref, end)]
-                    while p < len(gene_orders[y])-1 and gene_orders[y][p] in recovered_markers:
-                        p += 1
-                    v_end = fa2[gene_orders[y][p]][0]
+            if u.intt[1] in recovered_markers:
+                p = gos2pos[(ref, u.intt[1])]
+                while p < len(gos[ref])-1 and gos[ref][p] in recovered_markers:
+                    p += 1
+                u_end = fa1[gos[ref][p]][0]
 
-                if v_start == None:
-                    v_start = fa2[start[1]-1][0]
+            if u_start == None:
+                u_start = fa1[u.intt[0][1]-1][0]
 
-                if v_end == None: 
-                    v_end = fa2[end[1]-1][1]+1
-                
-                if v_end -v_start < options.min:
-                    continue
+            if u_end == None: 
+                u_end = fa1[u.intt[1][1]-1][1]+1
+            
+            if u.intt[1][1]-u.intt[0][1] < options.min:
+                continue
+
+            if u.links:
+                for (y, start, end) in u.links:
+                    if y != id1:
+                        continue
+                    v_end = v_start = None
+                    if start in recovered_markers:
+                        p = gos2pos[(y, start)]
+                        while p > 0 and gos[y][p] in recovered_markers:
+                            p -= 1
+                        v_start = fa2[gos[y][p]][1]
+
+                    if end in recovered_markers:
+                        p = gos2pos[(ref, end)]
+                        while p < len(gos[y])-1 and gos[y][p] in \
+                                recovered_markers:
+                            p += 1
+                        v_end = fa2[gos[y][p]][0]
+
+                    if v_start == None:
+                        v_start = fa2[start[1]-1][0]
+
+                    if v_end == None: 
+                        v_end = fa2[end[1]-1][1]+1
+                    
+                    if v_end -v_start < options.min:
+                        continue
 
 
 
-                if end[1]-start[1]+1 >= options.min:
-                    link = (G0.lower(), u.intt[0][0].lower(), u_start, u_end,\
-                            genomes[y].lower(), start[0].lower(), v_start, \
-                            v_end)
-                    res.add(link)
-                    level[link] = level.get(link, u_depth)
-                    hasHit = True
+                    if end[1]-start[1]+1 >= options.min:
+                        link = (G0.lower(), u.intt[0][0].lower(), u_start, u_end,\
+                                genomes[y].lower(), start[0].lower(), v_start, \
+                                v_end)
+                        res.add(link)
+                        level[link] = level.get(link, u_depth)
+                        hasHit = True
         if not hasHit or options.subInts or options.level > u_depth:
-            queue.extend(map(lambda y: (y, min(hasHit and u_depth+1 or u_depth,
+            queue.extend(map(lambda y: (y, u_id, min(hasHit and u_depth+1 or u_depth,
                 5)), filter(lambda x: len(x.children) > 1, u.children)))
 
     res = sorted(res)

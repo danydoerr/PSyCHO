@@ -41,8 +41,9 @@ LOG_FILENAME = '%s' %basename(argv[0]).rsplit('.py', 1)[0]
 
 class node(object):
     def __init__(self, left_b, right_b, type=None, parent=None, children=None,
-            links=None):
+            links=None,id=None):
         self.intt = (left_b, right_b)
+        self.id = id
         self.type = type
         self.parent = parent
         self.links = links or list()
@@ -579,6 +580,7 @@ def constructCIDS(L, G, ref, delta):
         pos[(ref, y)].append(list())
 
     for x in ids:
+
         Gx = list()
         p = 0
         prev = -delta
@@ -815,7 +817,6 @@ def getIntervals(pos, n, ref, start=None, end=None, M=None):
     end = end == None and len(pos[(ref, ids[0])]) or end
 
     # iterating through each position between i and end in the reference 
-
     while i < end:
 
         # do not start at an empty position
@@ -1103,11 +1104,12 @@ if __name__ == '__main__':
 
     CI_instances = list()
 
-    root = node(gene_orders[ref][1], gene_orders[ref][-2])
-
     g_counter = [go[-2][1] for go in gene_orders]
     new_markers = [list() for _ in id2genomes]
+    root = node(gene_orders[ref][1], gene_orders[ref][-2])
 
+    goss = list()
+    strong_ciss = list()
     for z in xrange(len(teams)):
         L, G = teams[z]
         if all(len(set(x)) > 1 for x in L):
@@ -1116,6 +1118,7 @@ if __name__ == '__main__':
 #                    id2genomes, ref, options.delta)
 #
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
+
             if len(set(map(len, bounds))) != 1:
                 continue
 
@@ -1158,14 +1161,29 @@ if __name__ == '__main__':
                 cis = getIntervals(pos, len(id2genomes), ref)
 
             strong_cis = identifyStrongIntervals(cis, ref)
-
-            CI_instances.append((gos, strong_cis))
             subtrees = constructInclusionTree(strong_cis, pos, gos, bounds,
                     len(id2genomes), ref)
+
+            for st in subtrees:
+                st.id = len(goss)
+            goss.append(gos)
+            strong_ciss.append(strong_cis)
 
             root.children.extend(subtrees)
             for subtree in subtrees:
                 subtree.parent = root
+
+#    covered_markers = set(chain(*(gene_orders[ref][g2pos[ref][u.intt[0]]: \
+#        g2pos[ref][u.intt[1]]+1] for u in root.children)))
+#    singletons = set(gene_orders[1:-2]).difference(covered_markers)
+#
+#    i = 0
+#    for g1i in singletons:
+#        while g2pos[ref][u.children[i].intt[1]] > g2pos[
+   
+    if len(root.children) == 1 and root.intt == root.children[0].intt:
+        root = root.children[0]
+        root.parent = None
 
     LOG.info('DONE! writing hierarchy..')
     tmp = mkdtemp()
@@ -1176,8 +1194,8 @@ if __name__ == '__main__':
     shObj['genomes'] = id2genomes 
     shObj['inclusion_tree'] = root
     shObj['recovered_markers'] = new_markers
-    shObj['gene_orders'] = gene_orders 
-    shObj['intervals'] = CI_instances
+    shObj['gene_orders'] = goss
+    shObj['intervals'] = strong_ciss
 
     shObj.sync()
     shObj.close()
