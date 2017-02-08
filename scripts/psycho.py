@@ -857,10 +857,14 @@ def getIntervals(pos, n, ref, start=None, end=None, M=None):
                                 jp_charsets[y][z+1] and ip_charsets[y][z] == \
                                 ip_charsets[y][z+1]:
                             continue
-                        res_i.append((ids[y], ip_charsets[y][z][1],
-                            ip_charsets[y][z][2]))
-                        res_j.append((ids[y], jp_charsets[y][z][1],
-                            jp_charsets[y][z][2]))
+                        int_i = (ids[y], ip_charsets[y][z][1],
+                                ip_charsets[y][z][2])
+                        if not res_i or res_i[-1] != int_i:
+                            res_i.append(int_i)
+                        int_j = (ids[y], jp_charsets[y][z][1],
+                                jp_charsets[y][z][2])
+                        if not res_j or res_j[-1] != int_j:
+                            res_j.append(int_j)
                 insort(res_i, (ref, ip, i))
                 insort(res_j, (ref, i, j))
                 res.update((tuple(res_i), tuple(res_j)))
@@ -885,7 +889,7 @@ def getIntervals(pos, n, ref, start=None, end=None, M=None):
                     M[y][p] += 1
         i += 1
 
-    return res
+    return list(res)
         
 
 def getIntervals_parallel(in_queue, out_queue, n, ref, pos):
