@@ -808,7 +808,7 @@ def getCharsetsI(pos, ids, ref, j, i_min=None, p_set=None,
 
 def getIntervals(pos, n, ref, start=None, end=None, M=None):
 
-    res = list() 
+    res = set() 
 
     # initialization
     ids = [x for x in xrange(n) if x != ref] 
@@ -850,19 +850,21 @@ def getIntervals(pos, n, ref, start=None, end=None, M=None):
                 
 
                 # add identified common intervals to result list
-                res_i = list()
+                res_i, res_j = list(), list()
                 for y in xrange(len(jp_charsets)):
                     for z in xrange(len(jp_charsets[y])):
                         if z < len(ip_charsets[y])-1 and jp_charsets[y][z] == \
                                 jp_charsets[y][z+1] and ip_charsets[y][z] == \
                                 ip_charsets[y][z+1]:
                             continue
-
                         res_i.append((ids[y], ip_charsets[y][z][1],
-                            ip_charsets[y][z][2], jp_charsets[y][z][1],
+                            ip_charsets[y][z][2]))
+                        res_j.append((ids[y], jp_charsets[y][z][1],
                             jp_charsets[y][z][2]))
-                insort(res_i, (ref, ip, i, i, j))
-                res.append(res_i)
+                insort(res_i, (ref, ip, i))
+                insort(res_j, (ref, i, j))
+                res.update((tuple(res_i), tuple(res_j)))
+
                 # XXX only use largest interval for now
                 break
 
@@ -881,7 +883,6 @@ def getIntervals(pos, n, ref, start=None, end=None, M=None):
             if pos.has_key((ref, y)):
                 for p in pos[(ref, y)][i]:
                     M[y][p] += 1
-
         i += 1
 
     return res
@@ -923,16 +924,12 @@ def identifyStrongIntervals(ints, ref):
         y = ref
         while ints[x][y][0] <= ref:
             if ints[x][y][0] == ref:
-                _, lb1, rb1, lb2, rb2 = ints[x][y]
-                bounds.extend(((lb1, '('), (rb1, ')'), (lb2, '('), (rb2, ')')))
-                if not int_map.has_key((lb1, rb1)):
-                    int_map[(lb1, rb1)] = set()
-                int_map[(lb1, rb1)].update((ints[x][z][0],ints[x][z][1], \
+                _, lb, rb = ints[x][y]
+                bounds.extend(((lb, '('), (rb, ')')))
+                if not int_map.has_key((lb, rb)):
+                    int_map[(lb, rb)] = set()
+                int_map[(lb, rb)].update((ints[x][z][0],ints[x][z][1], \
                         ints[x][z][2]) for z in xrange(len(ints[x])) if z != y)
-                if not int_map.has_key((lb2, rb2)):
-                    int_map[(lb2, rb2)] = set()
-                int_map[(lb2, rb2)].update((ints[x][z][0],ints[x][z][3], \
-                        ints[x][z][4]) for z in xrange(len(ints[x])) if z != y)
             y += 1
     bounds.sort()
 
@@ -948,7 +945,7 @@ def identifyStrongIntervals(ints, ref):
     res = set()
     for (l, r) in strong_cis:
         if l != r or int_map.has_key((l, r)):
-            res.add((l, r, tuple(int_map.get((l, r), ()))))
+            res.add(tuple(chain(((ref, l, r), ), int_map.get((l, r), ()))))
     return res
 
 
@@ -956,44 +953,46 @@ def constructInclusionTree(strong_cis, pos, gene_orders, bounds, n, ref):
 
     subtrees = list()
     for l, r in bounds[ref]:
-        c_strong_cis = set(c for c in strong_cis if c[0] >= l and c[1] <= r)
-        singletons = set(x[0] for x in c_strong_cis if x[0] == x[1])
+        c_strong_cis = set(c for c in strong_cis if c[0][1] >= l and c[0][2] <= r)
+        singletons = set(x[0][1] for x in c_strong_cis if x[0][1] == x[0][2])
 
         for i in xrange(l, r+1):
             if i not in singletons:
-                links = list()
+                links = [(ref, i, i)]
                 for y in xrange(n):
                     if y != ref and pos.has_key((ref, y)) and pos[(ref, y)]:
                         x = 0
                         # merge intervals of tandem duplicates
                         while x < len(pos[(ref, y)][i]):
                             s = x
-                            while x < len(pos[(ref, y)][i])-1  and pos[(ref,
-                                y)][i][x+1] == pos[(ref, y)][i][x]+1:
+                            while x < len(pos[(ref, y)][i])-1  and pos[(ref, \
+                                    y)][i][x+1] == pos[(ref, y)][i][x]+1:
                                 x += 1
                             links.append((y, pos[(ref, y)][i][s], pos[(ref, y)][i][x]))
                             x += 1
-                c_strong_cis.add((i, i, tuple(links)))
+                c_strong_cis.add(tuple(links))
 
 
-        I = sorted(c_strong_cis, cmp=lambda x, y: -cmp(x[1], y[1]) or cmp(x[0],
-            y[0]))
+        I = sorted(c_strong_cis, cmp=lambda x, y: -cmp(x[0][2], y[0][2]) or
+                cmp(x[0][1], y[0][1]))
 
         int_map = dict()
         # determine root
-        if I[0][0] != l or I[0][1] !=r:
-            I.insert(0, (l, r, list()))
-        F = node(gene_orders[ref][I[0][0]], gene_orders[ref][I[0][1]], \
+        if I[0][0][1] != l or I[0][0][2] !=r:
+            I.insert(0, ((ref, l, r), ))
+        F = node(gene_orders[ref][I[0][0][1]], gene_orders[ref][I[0][0][2]], \
                 links=tuple((y, gene_orders[y][start], gene_orders[y][end]) \
-                for (y, start, end) in I[0][2]))
+                for (y, start, end) in I[0][1:]))
         int_map[F] = 0
         root = F
         k = 1
         while k < len(I):
-            if I[k][0] >= I[int_map[F]][0] and I[k][1] <= I[int_map[F]][1]:
-                nI = node(gene_orders[ref][I[k][0]], gene_orders[ref][I[k][1]],
-                        parent=F, links=tuple((y, gene_orders[y][start],
-                            gene_orders[y][end]) for (y, start, end) in I[k][2]))
+            if I[k][0][1] >= I[int_map[F]][0][1] and I[k][0][2] <= \
+                    I[int_map[F]][0][2]:
+                nI = node(gene_orders[ref][I[k][0][1]], \
+                        gene_orders[ref][I[k][0][2]], parent=F, \
+                        links=tuple((y, gene_orders[y][start], \
+                        gene_orders[y][end]) for (y, start, end) in I[k][1:]))
                 F.children.append(nI)
                 F = nI
                 int_map[F] = k
@@ -1110,13 +1109,14 @@ if __name__ == '__main__':
 
     goss = list()
     strong_ciss = list()
+    ciss = list()
     for z in xrange(len(teams)):
         L, G = teams[z]
         if all(len(set(x)) > 1 for x in L):
 #            L, G, gene_orders, dists, g2pos, g_counter, new_markers = fixIndels(L, G, \
 #                    gene_orders, g2pos, dists, g_counter, new_markers, \
 #                    id2genomes, ref, options.delta)
-#
+
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
 
             if len(set(map(len, bounds))) != 1:
@@ -1168,6 +1168,7 @@ if __name__ == '__main__':
                 st.id = len(goss)
             goss.append(gos)
             strong_ciss.append(strong_cis)
+            ciss.append(cis)
 
             root.children.extend(subtrees)
             for subtree in subtrees:
@@ -1196,6 +1197,7 @@ if __name__ == '__main__':
     shObj['recovered_markers'] = new_markers
     shObj['gene_orders'] = goss
     shObj['intervals'] = strong_ciss
+    shObj['raw_intervals'] = ciss
 
     shObj.sync()
     shObj.close()
