@@ -114,6 +114,7 @@ if __name__ == '__main__':
         if u.id != None:
             u_id = u.id
 
+        hasHit = False
         if u_id != None:
             u_end = u_start = None
 
@@ -140,7 +141,6 @@ if __name__ == '__main__':
             if u.intt[1][1]-u.intt[0][1] < options.min:
                 continue
 
-            hasHit = False
             if u.links:
                 for (y, start, end) in u.links:
                     if y != id1:

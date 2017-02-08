@@ -298,9 +298,20 @@ def readDists(data, edgeThreshold=None):
 
         if hasMultipleChromosomes:
             chr1 = line[0]
-            g1 = int(line[1])
+            if line[1] == 'TELOMERE_START':
+                g1 = TELOMERE_START
+            elif line[1] == 'TELOMERE_END':
+                g1 = TELOMERE_END
+            else:
+                g1 = int(line[1])
             chr2 = line[2]
-            g2 = int(line[3])
+            if line[3] == 'TELOMERE_START':
+                g2 = TELOMERE_START
+            elif line[3] == 'TELOMERE_END':
+                g2 = TELOMERE_END
+            else:
+                g2 = int(line[3])
+
             direction = line[4]
             edgeWeight = float(line[5])
         else:
@@ -437,12 +448,12 @@ if __name__ == '__main__':
     LOG.addHandler(cf)
     LOG.addHandler(ch)
     
-    genes, fastaFiles = readGenesFromFasta(args, options.fastaDir or
+    genes, fastaFiles = readGenesFromFasta(sorted(args), options.fastaDir or
             dirname(args[0]))
     gNames = map(lambda x: basename(x).rsplit('.', 1)[0], fastaFiles)
     gene2genome = dict(chain(*(izip(v, repeat(k, len(v))) for k,v in
         genes.items())))
-    G = constructGeneGraph(args, gene2genome, options.selfComparison)
+    G = constructGeneGraph(sorted(args), gene2genome, options.selfComparison)
      
     LOG.info('Number of active genes in genomes')
     LOG.info('\n'.join(map(lambda x: '\t%s\t%s'%(x[0], len(x[1])),
