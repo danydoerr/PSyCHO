@@ -40,7 +40,8 @@ LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 LOG_FILENAME = '%s' %basename(argv[0]).rsplit('.py', 1)[0]
 
-COVERAGE_RATIO = 1.5
+# inverse coverage (1/coverage)
+COVERAGE_INV = 2
 
 class node(object):
     def __init__(self, left_b, right_b, type=None, parent=None, children=None,
@@ -1135,10 +1136,16 @@ if __name__ == '__main__':
 #                    id2genomes, ref, options.delta)
 
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
-            if len(set(map(len, bounds))) != 1 or any(reduce(lambda x,y: x+y, \
-                    map(lambda z: [float(gos[z][w[1]][1]-gos[z][w[0]][1]+1) \
-                    /(w[1]-w[0]+1) > COVERAGE_RATIO for w in bounds[z]], \
-                    xrange(len(bounds))))):
+            cov = reduce(lambda x,y: x+y, map(lambda z: [float(gos[z][w[1]][1] \
+                    -gos[z][w[0]][1]+1)/(w[1]-w[0]+1) for w in bounds[z]], \
+                    xrange(len(bounds))))
+            if len(set(map(len, bounds))) != 1 or any(x > COVERAGE_INV for x
+                    in cov):
+                LOG.info(('Dismissing marker team due to insufficient ' + \
+                        'coverage of markers (< %s) in at least one ' + \
+                        'occurrence: %s. Occurrence lengths: %s') %(1./COVERAGE_INV, 
+                            str(cov), str(reduce(lambda x,y: x+y, map(lambda z:
+                                [w[1]-w[0]+1 for w in z], bounds)))))
                 continue
 
             LOG.info('enumerating intervals for team %s' %', '.join(
