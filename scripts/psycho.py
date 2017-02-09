@@ -40,6 +40,8 @@ LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 LOG_FILENAME = '%s' %basename(argv[0]).rsplit('.py', 1)[0]
 
+COVERAGE_RATIO = 1.5
+
 class node(object):
     def __init__(self, left_b, right_b, type=None, parent=None, children=None,
             links=None,id=None):
@@ -1052,7 +1054,6 @@ def parseInput(args, options):
     # discard isMultiChrom information for now
     return genomes2id, gene_orders, dists
 
-
 if __name__ == '__main__':
 
     usage = '%prog [options] <PAIRWISE DIST FILE 1> ... <PAIRWISE DIST FILE N>'
@@ -1134,8 +1135,8 @@ if __name__ == '__main__':
 #                    id2genomes, ref, options.delta)
 
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
-
-            if len(set(map(len, bounds))) != 1:
+            if len(set(map(len, bounds))) != 1 or any(map(lambda x: \
+                    (x[-2][1]-x[1][1])/float(len(x)-2) > COVERAGE_RATIO, gos)):
                 continue
 
             LOG.info('enumerating intervals for team %s' %', '.join(
