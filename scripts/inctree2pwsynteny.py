@@ -2,7 +2,7 @@
 
 from sys import stdout, stderr, exit
 from optparse import OptionParser
-from os.path import dirname, join
+from os.path import dirname, join, isabs
 from itertools import izip
 import shelve
 import re
@@ -20,6 +20,28 @@ BREWER_COL = ['blues-%s-seq-3', 'bugn-%s-seq-3', 'bupu-%s-seq-3', 'gnbu-%s-seq-3
         'ylorbr-%s-seq-3', 'ylorrd-%s-seq-3']
 BREWER_COL_RANGE = range(3,10)
 
+
+def getSims(ref_int, y_bounds):
+    res_x = list()
+    res_y = list()
+
+    x_int = [gos[ref][x] for x in xrange(gos2pos[ref][ref_int[0]],
+        gos2pos[ref][ref_int[1]]+1)]
+    y_int = [gos[y_bounds[0]][x] for x in xrange(gos2pos[y_bounds[0]][y_bounds[1]],
+        gos2pos[y_bounds[0]][y_bounds[2]]+1)]
+
+    for gx in x_int:
+        res_x.append(list())
+        for gy in dists[(G0, genomes[y_bounds[0]])][gx]:
+            if gy in y_int:
+                res_x[-1].append(gy[1])
+
+    for gy in y_int:
+        res_y.append(list())
+        for gx in dists[(genomes[y_bounds[0]], G0)][gy]:
+            if gx in x_int:
+                res_y[-1].append(gx[1])
+    return res_x, res_y
 
 if __name__ == '__main__':
     usage = '%prog [options] <SHELVE> <TARGET GENOME>'
@@ -57,8 +79,17 @@ if __name__ == '__main__':
     genomes = shObj['genomes']
     genomes2id = dict(zip(genomes, xrange(len(genomes))))
 
-    genomeMap = readGenomeMap(open(join(dirname(shObj['orig_pw_dists'][0]),
-        GENOME_MAP_FILE)))
+    # XXX only for debugging purposes
+    from pairwise_similarities import readDists, reverseDistMap
+    from os.path import basename
+    dists = dict((tuple(basename(x).split('.')[0].split('_')),
+        readDists(open(x))[1]) for x in shObj['orig_pw_dists'])
+    dists.update(((k[1], k[0]), reverseDistMap(v)) for k,v in dists.items())
+
+    
+    dpath = dirname(shObj['orig_pw_dists'][0])
+    genomeMap = readGenomeMap(open(join(isabs(dpath) and dpath or
+        join(dirname(args[0]), dpath), GENOME_MAP_FILE)))
 
     ref = shObj['ref']
     G0 = genomes[ref]
@@ -138,10 +169,11 @@ if __name__ == '__main__':
             if u_end == None: 
                 u_end = fa1[u.intt[1][1]-1][1]+1
             
-            if u.intt[1][1]-u.intt[0][1] < options.min:
+            d1 = gos2pos[ref][u.intt[1]]-gos2pos[ref][u.intt[0]]+1
+            if d1 < options.min:
                 continue
 
-            if u.links:
+            if u.links and (not u.parent or u.parent.links != u.links):
                 for (y, start, end) in u.links:
                     if y != id1:
                         continue
@@ -164,13 +196,12 @@ if __name__ == '__main__':
 
                     if v_end == None: 
                         v_end = fa2[end[1]-1][1]+1
-                    
-                    if v_end -v_start < options.min:
-                        continue
 
-
-
-                    if end[1]-start[1]+1 >= options.min:
+                    d2 = gos2pos[y][end]-gos2pos[y][start]+1
+                    if d2 >= options.min:
+#                        if max(d1,d2)/float(min(d1,d2)) >= 3:
+#                            sims = getSims(u.intt, (y, start, end))
+#                            import pdb; pdb.set_trace() 
                         link = (G0.lower(), u.intt[0][0].lower(), u_start, u_end,\
                                 genomes[y].lower(), start[0].lower(), v_start, \
                                 v_end)
