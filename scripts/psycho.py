@@ -1135,8 +1135,10 @@ if __name__ == '__main__':
 #                    id2genomes, ref, options.delta)
 
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
-            if len(set(map(len, bounds))) != 1 or any(map(lambda x: \
-                    (x[-2][1]-x[1][1])/float(len(x)-2) > COVERAGE_RATIO, gos)):
+            if len(set(map(len, bounds))) != 1 or any(reduce(lambda x,y: x+y, \
+                    map(lambda z: [float(gos[z][w[1]][1]-gos[z][w[0]][1]+1) \
+                    /(w[1]-w[0]+1) > COVERAGE_RATIO for w in bounds[z]], \
+                    xrange(len(bounds))))):
                 continue
 
             LOG.info('enumerating intervals for team %s' %', '.join(
