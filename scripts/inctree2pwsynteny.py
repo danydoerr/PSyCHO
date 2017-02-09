@@ -82,10 +82,11 @@ if __name__ == '__main__':
     # XXX only for debugging purposes
     from pairwise_similarities import readDists, reverseDistMap
     from os.path import basename
-    dists = dict((tuple(basename(x).split('.')[0].split('_')),
-        readDists(open(x))[1]) for x in shObj['orig_pw_dists'])
-    dists.update(((k[1], k[0]), reverseDistMap(v)) for k,v in dists.items())
 
+    dists = dict((tuple(basename(x).split('.')[0].split('_')), \
+            readDists(open(isabs(x) and x or join(dirname(args[0]), x)))) for \
+            x in shObj['orig_pw_dists'])
+    dists.update(((k[1], k[0]), reverseDistMap(v)) for k,v in dists.items())
     
     dpath = dirname(shObj['orig_pw_dists'][0])
     genomeMap = readGenomeMap(open(join(isabs(dpath) and dpath or
