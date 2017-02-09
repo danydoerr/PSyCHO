@@ -949,7 +949,15 @@ def identifyStrongIntervals(ints, ref):
     res = set()
     for (l, r) in strong_cis:
         if l != r or int_map.has_key((l, r)):
-            res.add(tuple(chain(((ref, l, r), ), int_map.get((l, r), ()))))
+            links = sorted(int_map.get((l, r), ()))
+            i = 1
+            while i < len(links):
+                if links[i-1][0] == links[i][0] and \
+                        links[i-1][2] >= links[i][2]:
+                    del links[i]
+                else:
+                    i += 1
+            res.add(tuple(chain(((ref, l, r), ), links)))
     return res
 
 
