@@ -3,7 +3,7 @@
 from sys import stdout, stderr, argv, exit, maxint, setrecursionlimit
 from multiprocessing import Pool, Queue, JoinableQueue, cpu_count
 from itertools import izip, combinations, product, chain
-from os.path import basename, abspath, relpath
+from os.path import basename, abspath, relpath, dirname
 from bisect import bisect, insort
 from optparse import OptionParser
 from functools import partial
