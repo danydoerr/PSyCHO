@@ -3,11 +3,12 @@
 from sys import stdout, stderr, argv, exit, maxint, setrecursionlimit
 from multiprocessing import Pool, Queue, JoinableQueue, cpu_count
 from itertools import izip, combinations, product, chain
-from os.path import basename, abspath
+from os.path import basename, abspath, relpath
+from bisect import bisect, insort
 from optparse import OptionParser
+from functools import partial
 from collections import deque
 from tempfile import mkdtemp
-from bisect import bisect, insort
 from Queue import Empty
 from math import sqrt
 import networkx as nx
@@ -1061,6 +1062,9 @@ if __name__ == '__main__':
                     'allows for <delta> indels [default: %default]')
     parser.add_option('-r', '--reference', dest='ref', default=REF_DEFAULT,
             type='str', help='Reference genome [default: %default]')
+    parser.add_option('-o', '--output', dest='outFile', default='',
+            type='str', help='Specify output file name. If none is given, ' + \
+                    'output is piped to stdout. [default: %default]')
     parser.add_option('-t', '--threads', dest='noThreads', default=cpu_count(),
             type='int', help='Max number of parallel threads. [default: ' + \
             '%default]')
@@ -1199,10 +1203,19 @@ if __name__ == '__main__':
         root.parent = None
 
     LOG.info('DONE! writing hierarchy..')
-    tmp = mkdtemp()
-    shName = '%s/hierarchy.shelve' %tmp
+    shName = options.outFile
+    if not options.outFile:
+        tmp = mkdtemp()
+        shName= '%s/hierarchy.shelve' %tmp
+
     shObj = shelve.open(shName, flag='n', protocol=-1)
-    shObj['orig_pw_dists'] = map(abspath, args)
+
+    if options.outFile:
+        shObj['orig_pw_dists'] = map(partial(relpath,
+            start=dirname(options.outFile), args))
+    else:
+        shObj['orig_pw_dists'] = map(abspath, args)
+
     shObj['ref'] = ref
     shObj['genomes'] = id2genomes 
     shObj['inclusion_tree'] = root
@@ -1214,9 +1227,8 @@ if __name__ == '__main__':
     shObj.sync()
     shObj.close()
 
-    out = open(shName, 'r')
-    
-    stdout.write(out.read())
-    os.unlink(shName)
-    os.rmdir(tmp)
-
+    if not options.outFile:
+        out = open(shName, 'r')
+        stdout.write(out.read())
+        os.unlink(shName)
+        os.rmdir(tmp)

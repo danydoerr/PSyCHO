@@ -158,7 +158,7 @@ rule run_psycho:
         'psycho_d%s.log' %config['psycho_delta']
     shell:
         PYEXEC + 'psycho' + PYSUF + ' -d {params.delta} -r '
-        '{params.reference} {input} > {output}'
+        '{params.reference} {input} -o {output}'
 
 rule create_karyotypes:
     input:
