@@ -1212,7 +1212,7 @@ if __name__ == '__main__':
 
     if options.outFile:
         shObj['orig_pw_dists'] = map(partial(relpath,
-            start=dirname(options.outFile), args))
+            start=dirname(options.outFile)), args)
     else:
         shObj['orig_pw_dists'] = map(abspath, args)
 
