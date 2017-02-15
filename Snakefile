@@ -149,6 +149,7 @@ rule run_psycho:
         PW_SIMS
     params:
         delta = config['psycho_delta'],
+        coverage = config['psycho_cov'],
         reference = REF
     threads:
         64
@@ -158,7 +159,7 @@ rule run_psycho:
         'psycho_d%s.log' %config['psycho_delta']
     shell:
         PYEXEC + 'psycho' + PYSUF + ' -d {params.delta} -r '
-        '{params.reference} {input} -o {output}'
+        '{params.reference} {input} -c {params.coverage} -o {output}'
 
 rule create_karyotypes:
     input:

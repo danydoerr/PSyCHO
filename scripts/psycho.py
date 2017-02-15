@@ -30,18 +30,16 @@ from dll import doubly_linked_list as DLL, node as dnode
 setrecursionlimit(100000)
 
 MAX_ITERATION = 10
-MAX_NO_THREADS = cpu_count()
 CONTIG_BOUNDARY = (-1, maxint)
-INTERSECTWITH= 0
-SUBINTERVALOF = 1
-REF_DEFAULT = 'G1'
+
+DEFAULT_REF = 'G1'
+DEFAULT_COVERAGE_INV = 3
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 LOG_FILENAME = '%s' %basename(argv[0]).rsplit('.py', 1)[0]
 
 # inverse coverage (1/coverage)
-COVERAGE_INV = 2
 
 class node(object):
     def __init__(self, left_b, right_b, type=None, parent=None, children=None,
@@ -1062,13 +1060,18 @@ if __name__ == '__main__':
     parser.add_option('-d', '--delta', dest='delta', default=0, type='int',
             help='Approximate weak common intervals parameter, ' + \
                     'allows for <delta> indels [default: %default]')
-    parser.add_option('-r', '--reference', dest='ref', default=REF_DEFAULT,
+    parser.add_option('-r', '--reference', dest='ref', default=DEFAULT_REF,
             type='str', help='Reference genome [default: %default]')
+    parser.add_option('-c', '--inv_coverage', dest='cov',
+            default=DEFAULT_COVERAGE_INV, type='int',
+            help='Minimum inverse covaerge a delta-team must have in order' + \
+                    ' to be considered as syntenic context block [default:' + \
+                    ' %default]')
     parser.add_option('-o', '--output', dest='outFile', default='',
             type='str', help='Specify output file name. If none is given, ' + \
-                    'output is piped to stdout. [default: %default]')
+                    'output is piped to stdout [default: %default]')
     parser.add_option('-t', '--threads', dest='noThreads', default=cpu_count(),
-            type='int', help='Max number of parallel threads. [default: ' + \
+            type='int', help='Max number of parallel threads [default: ' + \
             '%default]')
 
     (options, args) = parser.parse_args()
@@ -1097,7 +1100,7 @@ if __name__ == '__main__':
         x[1]))
 
     if options.ref not in genomes2id:
-        if options.ref == REF_DEFAULT:
+        if options.ref == DEFAULT_REF:
             LOG.fatal('you must specify a reference genome!')
         else:
             LOG.fatal(('reference genome %s is not contained in dataset.' + \
@@ -1139,11 +1142,11 @@ if __name__ == '__main__':
             cov = reduce(lambda x,y: x+y, map(lambda z: [float(gos[z][w[1]][1] \
                     -gos[z][w[0]][1]+1)/(w[1]-w[0]+1) for w in bounds[z]], \
                     xrange(len(bounds))))
-            if len(set(map(len, bounds))) != 1 or any(x > COVERAGE_INV for x
+            if len(set(map(len, bounds))) != 1 or any(x > options.cov for x
                     in cov):
                 LOG.info(('Dismissing marker team due to insufficient ' + \
-                        'coverage of markers (< %s) in at least one ' + \
-                        'occurrence: %s. Occurrence lengths: %s') %(1./COVERAGE_INV, 
+                        'coverage of markers (1/cov > %s) in at least one ' + \
+                        'occurrence: %s. Occurrence lengths: %s') %(options.cov, 
                             str(cov), str(reduce(lambda x,y: x+y, map(lambda z:
                                 [w[1]-w[0]+1 for w in z], bounds)))))
                 continue
