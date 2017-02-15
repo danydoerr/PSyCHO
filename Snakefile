@@ -149,7 +149,7 @@ rule run_psycho:
         PW_SIMS
     params:
         delta = config['psycho_delta'],
-        coverage = config['psycho_cov']),
+        coverage = config['psycho_cov'],
         reference = REF
     threads:
         64
