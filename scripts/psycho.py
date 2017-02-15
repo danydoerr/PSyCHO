@@ -544,7 +544,7 @@ def r(xy):
     divisor = (sqrt(n * sum(map(lambda x: x[0]**2, xy)) - sx**2) *\
             sqrt(n*sum(map(lambda x: x[1]**2, xy))-sy**2))
     if divisor == 0.0:
-        return 0
+        return 1
     return (n * sum(map(lambda x: x[0]*x[1], xy))-sx*sy)/divisor
 
 
