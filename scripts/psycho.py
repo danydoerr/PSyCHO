@@ -41,7 +41,7 @@ LOG.setLevel(logging.DEBUG)
 LOG_FILENAME = '%s' %basename(argv[0]).rsplit('.py', 1)[0]
 
 # inverse coverage (1/coverage)
-COVERAGE_INV = 2
+COVERAGE_INV = 3
 
 class node(object):
     def __init__(self, left_b, right_b, type=None, parent=None, children=None,
