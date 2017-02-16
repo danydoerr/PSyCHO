@@ -14,6 +14,8 @@ from psycho import node
 PAT_CHR = re.compile('.*\|chromosome\|([^\|]+)(\|.*|$)')
 PAT_POS = re.compile('.*\|(\d+):(\d+)(\|.*|$)')
 
+MIN_SIZE = 10
+
 
 def compute_coverage(root, gene_orders, g2pos, marker_loc, ref):
     covered_markers = list(set() for _ in gene_orders[0])
@@ -59,28 +61,27 @@ if __name__ == '__main__':
     #
     root = shObj['inclusion_tree']
     genomes = shObj['genomes']
+    gene_orders = shObj['gene_orders']
     
-    queue = [(root, 1, True)]
+    queue = [(root, 1)]
     depths = list()
     syn_blocks = 0
-    top_level = 0
+
     while queue:
-        u, u_depth, isTopLevel = queue.pop()
+        u, u_depth = queue.pop()
         if u.links:
             syn_blocks += 1
-            if isTopLevel and u.children:
-                top_level += 1
-                isTopLevel = False
         for child in u.children:
             if len(child.children) > 1:
-                queue.append((child, u_depth+1, isTopLevel))
+                queue.append((child, u_depth+1))
             else:
                 depths.append(u_depth+1)
 
     print >> stdout, 'max tree depth: %s' %max(depths)
     print >> stdout, 'avg tree depth: %s' %(sum(depths)/float(len(depths)))
     print >> stdout, '# internal nodes w. links: %s' %syn_blocks
-    print >> stdout, '# top-level blocks: %s' %top_level
+    print >> stdout, '# top-level blocks: %s' %sum(1 for x in gene_orders if
+            all(map(lambda y: len(y)-2 > MIN_SIZE, x)))
 
     #
     # read marker positions from marker fasta files
@@ -101,7 +102,6 @@ if __name__ == '__main__':
                     PAT_POS.match(gx1).group(1,2))
         marker_loc.append(m_dict)
            
-    gene_orders = shObj['gene_orders']
     g2pos = [[dict(izip(go, xrange(len(go)))) for go in gos] for gos in \
             gene_orders]
 
