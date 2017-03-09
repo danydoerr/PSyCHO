@@ -10,6 +10,8 @@ from bisect import bisect
 import logging
 import csv
 
+from pairwise_similarities import PAT_CHR
+
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 LOG_FILENAME = '%s.log' %basename(argv[0]).rsplit('.py', 1)[0]
@@ -33,7 +35,13 @@ def readFastaFiles(seqFiles, mauveFile):
                 chr_locations[ident] = list() 
             else:
                 seqRecords[ident][1] += record
-            chr_locations[ident].append((cur_len, record.id))
+
+            chr_id = record.id
+            m = PAT_CHR.match(record.id)
+            if m:
+                chr_id = m.group(1)
+
+            chr_locations[ident].append((cur_len, chr_id))
             cur_len += len(record)
     
     # put list into order indicated by mauve backbone filename
@@ -69,7 +77,7 @@ def parseMauveBackbone(seqData, chr_locations, mauveFile, minLength, quorum):
         for i in range(len(line)/2):
             if line[i*2] == '0':
                 continue
-            
+           
             ident = basename(seqData[i][0]).rsplit('.', 1)[0]
             orient = int(line[i*2]) >= 0 and '+' or '-'
             start, end = abs(int(line[i*2]))-1, abs(int(line[i*2+1]))
