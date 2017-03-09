@@ -62,10 +62,11 @@ rule run_mauve:
         seed_weight = config['mauve_seed_weight'],
         tmp_dir = config['tmp_dir']
     output:
-        xmfa = '%s/alignment.xmfa' %MAUVE_OUT,
+        xmfa = temp('%s/alignment.xmfa' %MAUVE_OUT),
         guide_tree = '%s/alignment.tree' %MAUVE_OUT,
         backbone = '%s/%s.backbone' %(MAUVE_OUT,
-        '_'.join(basename(x[:x.rfind('.')]) for x in GENOMES))
+        '_'.join(basename(x[:x.rfind('.')]) for x in GENOMES)),
+        sslist = temp('{genome}.sslist', genome=GENOMES)
     log:
         '%s/mauve.log' %MAUVE_OUT
     shell:
