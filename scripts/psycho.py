@@ -74,43 +74,45 @@ class node(object):
 
 def hierarchy2dict(root):
 
-    r_list = list()
+    res = list()
 
-    queue = deque(((root, r_list, None), ))
+    queue = deque(((root, 1), ))
 
+    offset = 1
     while queue:
-        v, p_list, mseq_id = queue.popleft()
+        v, mseq_id = queue.popleft()
         if mseq_id == None and v.id != None:
             mseq_id = v.id
         vDict = {'marker_seq_id': mseq_id,
                 'ref_sb': v.intt,
                 'linked_sbs': v.links,
-                'children': list()}
-        p_list.append(vDict)
-        queue.extend(map(lambda x: (x, vDict['children'], mseq_id), v.children))
+                'children': range(offset, offset+len(v.children))}
+        res.append(vDict)
+        queue.extend(map(lambda x: (x, mseq_id), v.children))
+        offset += len(v.children)
 
-    return r_list[0]
+    return res
 
 
-def dict2hierarchy(JSON_dict):
+def dict2hierarchy(JSON_list):
 
-    root = None
-    queue = deque(((JSON_dict, root), ))
-    while queue:
-        jdict, parent = queue.pop()
-        ref_sb = jdict['ref_sb']
-        v = node(ref_sb[0], ref_sb[1], parent=parent, links=jdict['linked_sbs'],
-            id=jdict['marker_seq_id'])
-        if parent == None:
-            root = v
-        else:
-            if parent.children:
-                v.next_sibling = parent.children[-1]
-                v.parent = None
-            parent.children.append(v)
-        queue.extend(map(lambda x: (x, v), jdict['children']))
+    nodes = map(lambda x: node(x['ref_sb'][0], x['ref_sb'][1],
+        id=x['marker_seq_id'], links=x['linked_sbs']), JSON_list)
+    refd = set(xrange(len(JSON_list)))
+    for x in xrange(JSON_list):
+        child_ids = JSON_list[x].get('children', ())
+        refd.difference_update(child_ids)
+        for i in child_ids:
+            if nodes[x].children:
+                nodes[i].next_sibling = nodes[x].children[-1]
+            else:
+                nodes[i].parent = nodes[x]
+            nodes[x].children.append(nodes[i])
 
-    return root
+    if len(refd) > 1:
+        raise Exception('Restored hierarchy has more than one root!')
+
+    return nodes[next(iter(refd))]
 
 
 def removeNonUniversalGenes(G, n):
@@ -1190,7 +1192,7 @@ if __name__ == '__main__':
 
     g_counter = [go[-2][1] for go in gene_orders]
     new_markers = [list() for _ in id2genomes]
-    root = node(gene_orders[ref][1], gene_orders[ref][-2])
+    root = node(1, len(gene_orders[ref])-2)
 
     goss = list()
     strong_ciss = list()
