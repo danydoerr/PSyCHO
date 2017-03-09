@@ -14,17 +14,17 @@ MIN_SIZE = 10
 
 
 def compute_coverage(root, marker_seq_list, recovered_markers, ref):
-    covered_markers = list(set() for _ in marker_seq_list[0])
+    covered_markers = list(set() for _ in marker_seq_list)
 
     queue = [root]
     while queue:
         u = queue.pop()
         if u.links:
-            gos = marker_seq_list[u.id]
             for x, start, end in chain(((ref, u.intt[0], u.intt[1]),), u.links):
+                gos = marker_seq_list[x][u.id]
                 for p in xrange(start, end+1):
-                    if gos[x][p] not in recovered_markers[x]:
-                        m = PAT_POS.match(gos[x][p])
+                    if gos[p] not in recovered_markers[x]:
+                        m = PAT_POS.match(gos[p])
                         if m:
                             covered_markers[x].add(tuple(map(int,
                                 m.group(1,2))))
@@ -76,8 +76,10 @@ if __name__ == '__main__':
     print >> stdout, 'max tree depth: %s' %max(depths)
     print >> stdout, 'avg tree depth: %s' %(sum(depths)/float(len(depths)))
     print >> stdout, '# internal nodes w. links: %s' %syn_blocks
-    print >> stdout, '# top-level blocks: %s' %sum(1 for x in marker_seq_list if
-            all(map(lambda y: len(y)-2 > MIN_SIZE, x)))
+    print >> stdout, '# top-level blocks: %s' %sum(1 for x in
+            xrange(len(marker_seq_list[ref])) if all(map(lambda y:
+                len(marker_seq_list[y][x])-2 > MIN_SIZE,
+                xrange(len(genomes)))))
 
     coverage = compute_coverage(root, marker_seq_list, recovered_markers, ref)
     print >> stdout, 'coverage:'
