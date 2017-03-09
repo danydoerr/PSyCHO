@@ -3,7 +3,7 @@
 from sys import stdout, stderr, argv, exit, maxint, setrecursionlimit
 from multiprocessing import Pool, Queue, JoinableQueue, cpu_count
 from itertools import izip, combinations, product, chain
-from os.path import basename, abspath, relpath, dirname
+from os.path import basename, abspath, relpath, dirname, join, isfile
 from bisect import bisect, insort
 from optparse import OptionParser
 from functools import partial
@@ -13,24 +13,25 @@ from Queue import Empty
 from math import sqrt
 import networkx as nx
 import logging
-import shelve
+import json
 import os
+
 
 
 #
 # enable import from parent/sibling modules
 #
 
-from pairwise_similarities import readDists, reverseDistMap, \
+from pairwise_similarities import readDists, reverseDistMap, readGenomeMap, \
         DIRECTION_CRICK_STRAND, DIRECTION_WATSON_STRAND, \
-        TELOMERE_END, TELOMERE_START
-
+        TELOMERE_END, TELOMERE_START, GENOME_MAP_FILE, GM_ACTV_GNS_KEY
 from dll import doubly_linked_list as DLL, node as dnode
 
-setrecursionlimit(100000)
+#setrecursionlimit(100000)
 
 MAX_ITERATION = 10
 CONTIG_BOUNDARY = (-1, maxint)
+CONTIG_BOUNDARY_KEY = '__CONTIG_BOUNDARY__'
 
 DEFAULT_REF = 'G1'
 DEFAULT_COVERAGE_INV = 3
@@ -70,6 +71,26 @@ class node(object):
             out+= '->[%s]' %(' '.join(map(lambda x: '%s:%s-%s' %x,
                 self.links)))
         return out
+
+def hierarchy2dict(root):
+
+    r_list = list()
+
+    queue = deque(((root, r_list, None), ))
+
+    while queue:
+        v, p_list, mseq_id = queue.popleft()
+        if mseq_id == None and v.id != None:
+            mseq_id = v.id
+        vDict = {'marker_seq_id': mseq_id,
+                'ref_sb': v.intt,
+                'linked_sbs': v.links,
+                'children': list()}
+        p_list.append(vDict)
+        queue.extend(map(lambda x: (x, vDict['children'], mseq_id), v.children))
+
+    return r_list[0]
+        
 
 def removeNonUniversalGenes(G, n):
 
@@ -994,19 +1015,15 @@ def constructInclusionTree(strong_cis, pos, gene_orders, bounds, n, ref):
         # determine root
         if I[0][0][1] != l or I[0][0][2] !=r:
             I.insert(0, ((ref, l, r), ))
-        F = node(gene_orders[ref][I[0][0][1]], gene_orders[ref][I[0][0][2]], \
-                links=tuple((y, gene_orders[y][start], gene_orders[y][end]) \
-                for (y, start, end) in I[0][1:]))
+        F = node(I[0][0][1], I[0][0][2], links=tuple(I[0][1:]))
         int_map[F] = 0
         root = F
         k = 1
         while k < len(I):
             if I[k][0][1] >= I[int_map[F]][0][1] and I[k][0][2] <= \
                     I[int_map[F]][0][2]:
-                nI = node(gene_orders[ref][I[k][0][1]], \
-                        gene_orders[ref][I[k][0][2]], parent=F, \
-                        links=tuple((y, gene_orders[y][start], \
-                        gene_orders[y][end]) for (y, start, end) in I[k][1:]))
+                nI = node(I[k][0][1], I[k][0][2], parent=F, \
+                        links=tuple(I[k][1:]))
                 F.children.append(nI)
                 F = nI
                 int_map[F] = k
@@ -1015,6 +1032,25 @@ def constructInclusionTree(strong_cis, pos, gene_orders, bounds, n, ref):
                 F = F.parent
         subtrees.append(root)
     return subtrees
+
+
+def gos2mseq(goss, gMap, id2genomes):
+
+    res = list()
+
+    for gos in goss:
+        mseqs = list()
+        for y in xrange(len(gos)):
+            marker_order = gMap[id2genomes[y]][GM_ACTV_GNS_KEY]
+            mseqs.append(list())
+            for chrx, x in gos[y]:
+                if (chrx, x) == CONTIG_BOUNDARY:
+                    mseqs[-1].append(CONTIG_BOUNDARY_KEY)
+                else:
+                    mseqs[-1].append(marker_order[x-1])
+        res.append(mseqs)
+
+    return res
 
 
 def parseInput(args, options):
@@ -1109,6 +1145,13 @@ if __name__ == '__main__':
         exit(1)
 
     ref = genomes2id[options.ref]
+
+    gMapFile = join(dirname(args[0]), GENOME_MAP_FILE)
+    if not isfile(gMapFile):
+        LOG.fatal(('Unable to locate genome map file at assumed location ' + \
+                '%s. Exiting.') %gMapFile)
+        exit(1)
+    gMap = readGenomeMap(open(gMapFile))
 
     G = nx.Graph()
     for Gx, Gy in combinations(id2genomes, 2):
@@ -1216,32 +1259,26 @@ if __name__ == '__main__':
         root.parent = None
 
     LOG.info('DONE! writing hierarchy..')
-    shName = options.outFile
-    if not options.outFile:
-        tmp = mkdtemp()
-        shName= '%s/hierarchy.shelve' %tmp
+    outDict = dict()
 
-    shObj = shelve.open(shName, flag='n', protocol=-1)
-
+    outDict['genome_names'] = id2genomes 
+    outDict['ref_id'] = ref
+    #outDict['recovered_markers'] = new_markers
+    outDict['marker_seq_list'] = gos2mseq(goss, gMap, id2genomes)
+    #outDict['intervals'] = strong_ciss
+    outDict['raw_sbfs'] = ciss
     if options.outFile:
-        shObj['orig_pw_dists'] = map(partial(relpath,
+        outDict['pwsim_files'] = map(partial(relpath,
             start=dirname(options.outFile)), args)
     else:
-        shObj['orig_pw_dists'] = map(abspath, args)
+        outDict['pwsim_files'] = map(abspath, args)
 
-    shObj['ref'] = ref
-    shObj['genomes'] = id2genomes 
-    shObj['inclusion_tree'] = root
-    shObj['recovered_markers'] = new_markers
-    shObj['gene_orders'] = goss
-    shObj['intervals'] = strong_ciss
-    shObj['raw_intervals'] = ciss
+    outDict['sb_hierarchy'] = hierarchy2dict(root)
 
-    shObj.sync()
-    shObj.close()
+    out = stdout
+    if options.outFile:
+        out = open(options.outFile, 'w')
 
-    if not options.outFile:
-        out = open(shName, 'r')
-        stdout.write(out.read())
-        os.unlink(shName)
-        os.rmdir(tmp)
+    print >> out, json.dumps(outDict)
+
+
