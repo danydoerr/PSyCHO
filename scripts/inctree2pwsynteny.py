@@ -19,24 +19,24 @@ BREWER_COL = ['blues-%s-seq-3', 'bugn-%s-seq-3', 'bupu-%s-seq-3', 'gnbu-%s-seq-3
 BREWER_COL_RANGE = range(3,10)
 
 
-def getSims(ref_int, y_bounds):
+def getSims(ref_int, gos_ref, gos_target, y_bounds, G0, G1):
     res_x = list()
     res_y = list()
 
-    x_int = [gos[ref][x] for x in xrange(gos2pos[ref][ref_int[0]],
-        gos2pos[ref][ref_int[1]]+1)]
-    y_int = [gos[y_bounds[0]][x] for x in xrange(gos2pos[y_bounds[0]][y_bounds[1]],
-        gos2pos[y_bounds[0]][y_bounds[2]]+1)]
+    x_int = [gos_ref[x] for x in xrange(gos_ref[ref_int[0]], \
+            gos_ref[ref_int[1]]+1)]
+    y_int = [gos_target[x] for x in xrange(gos_target[y_bounds[1]], \
+            gos_target[y_bounds[2]]+1)]
 
     for gx in x_int:
         res_x.append(list())
-        for gy in dists[(G0, genomes[y_bounds[0]])][gx]:
+        for gy in dists[(G0, G1)][gx]:
             if gy in y_int:
                 res_x[-1].append(gy[1])
 
     for gy in y_int:
         res_y.append(list())
-        for gx in dists[(genomes[y_bounds[0]], G0)][gy]:
+        for gx in dists[(G1, G0)][gy]:
             if gx in x_int:
                 res_y[-1].append(gx[1])
     return res_x, res_y
@@ -99,17 +99,16 @@ if __name__ == '__main__':
 
     id1 = genomes2id[G1]
 
-    marker_seq_list = jsDict['marker_seq_list']
-    g2pos = [[dict(izip(go, xrange(len(go)))) for go in gos] for gos in \
-            marker_seq_list]
+    markers_ref = jsDict['marker_seq_list'][ref]
+    markers_target = jsDict['marker_seq_list'][id1]
+    g2pos_ref = [dict(izip(go, xrange(len(go)))) for go in markers_ref]
+    g2pos_target = [dict(izip(go, xrange(len(go)))) for go in markers_target]
     recovered_markers = jsDict['recovered_markers']
-
+    
     chr1s = sorted(set('%s.%s'%(G0.lower(), PAT_CHR.match(x).group(1).lower()) \
-            for x in chain(*map(lambda m: m[ref], marker_seq_list)) if x != \
-            CONTIG_BOUNDARY_KEY))
+            for x in chain(*markers_ref) if x != CONTIG_BOUNDARY_KEY))
     chr2s = sorted(set('%s.%s'%(G1.lower(), PAT_CHR.match(x).group(1).lower()) \
-            for x in chain(*map(lambda m: m[id1], marker_seq_list)) if x != \
-            CONTIG_BOUNDARY_KEY))
+            for x in chain(*markers_target) if x != CONTIG_BOUNDARY_KEY))
 
     #
     # load inclusion tree
@@ -141,24 +140,23 @@ if __name__ == '__main__':
             if d1 < options.min:
                 continue
 
-            gos = marker_seq_list[u.id]
-            gos2pos = g2pos[u.id]
+            gos_ref = markers_ref[u.id]
 
             u_start, u_end = u.intt
-            while u_start > 0 and gos[ref][u_start] in recovered_markers[ref]:
+            while u_start > 0 and gos_ref[u_start] in recovered_markers[ref]:
                 u_start -= 1
-            while u_end < len(gos[ref])-1 and gos[ref][u_end] in \
+            while u_end < len(gos_ref)-1 and gos_ref[u_end] in \
                     recovered_markers[ref]:
                 u_end += 1
 
             # if the boundary of the syntenic block has been extended due to
             # recovered markers, take the inner extremity of the neighboring
             # marker, otherwise the outer extremity of the contained marker
-            u_start_p = int(PAT_POS.match(gos[ref][u_start]).group(u_start
-                == u.intt[0] and 1 or 2))
-            u_end_p   = int(PAT_POS.match(gos[ref][u_end]).group(u_end ==
+            u_start_p = int(PAT_POS.match(gos_ref[u_start]).group(u_start ==
+                u.intt[0] and 1 or 2))
+            u_end_p   = int(PAT_POS.match(gos_ref[u_end]).group(u_end ==
                 u.intt[1] and 2 or 1))
-            u_chr = PAT_CHR.match(gos[ref][u_start]).group(1)
+            u_chr = PAT_CHR.match(gos_ref[u_start]).group(1)
 
             if u.links and (not u.parent or u.parent.links != u.links):
                 for i in xrange(len(u.links)):
@@ -168,9 +166,12 @@ if __name__ == '__main__':
                     if y != id1 or d2 < options.min:
                         continue
 
-                    while start > 0 and gos[y][start] in recovered_markers[y]:
+                    gos_target  = markers_target[u.id]
+
+                    while start > 0 and gos_target[start] in \
+                            recovered_markers[y]:
                         start -= 1
-                    while end < len(gos[y])-1 and gos[y][end] in \
+                    while end < len(gos_target)-1 and gos_target[end] in \
                             recovered_markers[y]:
                         end += 1
 
@@ -178,11 +179,11 @@ if __name__ == '__main__':
                     # due to recovered markers, take the inner extremity of the
                     # neighboring marker, otherwise the outer extremity of the
                     # contained marker
-                    v_start_p = int(PAT_POS.match(gos[y][start]).group(\
+                    v_start_p = int(PAT_POS.match(gos_target[start]).group(\
                             start == u.links[i][1] and 1 or 2))
-                    v_end_p = int(PAT_POS.match(gos[y][end]).group(end \
+                    v_end_p = int(PAT_POS.match(gos_target[end]).group(end \
                             == u.links[i][2] and 2 or 1))
-                    v_chr = PAT_CHR.match(gos[y][start]).group(1)
+                    v_chr = PAT_CHR.match(gos_target[start]).group(1)
 #                   if max(d1,d2)/float(min(d1,d2)) >= 3:
 #                       sims = getSims(u.intt, (y, start, end))
 #                       import pdb; pdb.set_trace() 
