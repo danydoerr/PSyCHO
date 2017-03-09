@@ -1059,20 +1059,17 @@ def constructInclusionTree(strong_cis, pos, gene_orders, bounds, n, ref):
 
 def gos2mseq(goss, gMap, id2genomes):
 
-    res = list()
+    res = [list() for _ in id2genomes]
 
     for gos in goss:
-        mseqs = list()
         for y in xrange(len(gos)):
             marker_order = gMap[id2genomes[y]][GM_ACTV_GNS_KEY]
-            mseqs.append(list())
+            res[y].append(list())
             for chrx, x in gos[y]:
                 if (chrx, x) == CONTIG_BOUNDARY:
-                    mseqs[-1].append(CONTIG_BOUNDARY_KEY)
+                    res[y][-1].append(CONTIG_BOUNDARY_KEY)
                 else:
-                    mseqs[-1].append(marker_order[x-1])
-        res.append(mseqs)
-
+                    res[y][-1].append(marker_order[x-1])
     return res
 
 
