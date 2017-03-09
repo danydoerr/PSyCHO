@@ -45,7 +45,7 @@ rule all:
     input:
 #        '%s/%s_BAPHI_%s.circos.conf' %(HIERARCHY_OUT,  REF,
 #        CIRCOS_PLOT_SUFFIX),
-#        '%s/hierarchy_d%s.shelve' %(HIERARCHY_OUT,  config['psycho_delta'])
+#        '%s/hierarchy_d%s.json' %(HIERARCHY_OUT,  config['psycho_delta'])
         expand('%s/%s_{target}_%s.png' %(HIERARCHY_OUT,  REF,
         CIRCOS_PLOT_SUFFIX),
         target=[basename(GENOMES[x][:GENOMES[x].rfind('.')]) for x in
@@ -154,7 +154,7 @@ rule run_psycho:
     threads:
         64
     output:
-        '%s/hierarchy_d%s.shelve' %(HIERARCHY_OUT, config['psycho_delta'])
+        '%s/hierarchy_d%s.json' %(HIERARCHY_OUT, config['psycho_delta'])
     log:
         'psycho_d%s.log' %config['psycho_delta']
     shell:
@@ -175,7 +175,7 @@ rule create_karyotypes:
 
 rule generate_circos_files:
     input:
-        shelve = '%s/hierarchy_d%s.shelve' %(HIERARCHY_OUT,
+        json = '%s/hierarchy_d%s.json' %(HIERARCHY_OUT,
         config['psycho_delta']),
         markers = '%s/{genome}.gos' %MARKERS_DIR
     params:
@@ -188,7 +188,7 @@ rule generate_circos_files:
         '%s/%s_{genome}_%s.links' %(HIERARCHY_OUT, REF, CIRCOS_PLOT_SUFFIX),
     run:
         shell(PYEXEC + 'inctree2pwsynteny' + PYSUF + ' -k {params.karyotype_dir} ' 
-        '-o {params.out_dir} {params.plot_params} {input.shelve} ' + 
+        '-o {params.out_dir} {params.plot_params} {input.json} ' + 
         basename(input.markers).rsplit('.')[0])
 
 rule run_circos:
