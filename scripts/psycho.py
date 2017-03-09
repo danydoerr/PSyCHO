@@ -90,7 +90,28 @@ def hierarchy2dict(root):
         queue.extend(map(lambda x: (x, vDict['children'], mseq_id), v.children))
 
     return r_list[0]
-        
+
+
+def dict2hierarchy(JSON_dict):
+
+    root = None
+    queue = deque(((JSON_dict, root), ))
+    while queue:
+        jdict, parent = queue.pop()
+        ref_sb = jdict['ref_sb']
+        v = node(ref_sb[0], ref_sb[1], parent=parent, links=jdict['linked_sbs'],
+            id=jdict['marker_seq_id'])
+        if parent == None:
+            root = v
+        else:
+            if parent.children:
+                v.next_sibling = parent.children[-1]
+                v.parent = None
+            parent.children.append(v)
+        queue.extend(map(lambda x: (x, v), jdict['children']))
+
+    return root
+
 
 def removeNonUniversalGenes(G, n):
 
@@ -1263,7 +1284,7 @@ if __name__ == '__main__':
 
     outDict['genome_names'] = id2genomes 
     outDict['ref_id'] = ref
-    #outDict['recovered_markers'] = new_markers
+    outDict['recovered_markers'] = new_markers
     outDict['marker_seq_list'] = gos2mseq(goss, gMap, id2genomes)
     #outDict['intervals'] = strong_ciss
     outDict['raw_sbfs'] = ciss
