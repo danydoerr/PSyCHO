@@ -181,7 +181,7 @@ if __name__ == '__main__':
                     v_start_p = int(PAT_POS.match(gos[y][start]).group(\
                             start == u.links[i][1] and 1 or 2))
                     v_end_p = int(PAT_POS.match(gos[y][end]).group(end \
-                            == u.links[2] and 2 or 1))
+                            == u.links[i][2] and 2 or 1))
                     v_chr = PAT_CHR.match(gos[y][start]).group(1)
 #                   if max(d1,d2)/float(min(d1,d2)) >= 3:
 #                       sims = getSims(u.intt, (y, start, end))
