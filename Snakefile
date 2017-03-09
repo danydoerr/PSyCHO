@@ -66,7 +66,7 @@ rule run_mauve:
         guide_tree = '%s/alignment.tree' %MAUVE_OUT,
         backbone = '%s/%s.backbone' %(MAUVE_OUT,
         '_'.join(basename(x[:x.rfind('.')]) for x in GENOMES)),
-        sslist = temp('{genome}.sslist', genome=GENOMES)
+        sslist = temp(expand('{genome}.sslist', genome=GENOMES))
     log:
         '%s/mauve.log' %MAUVE_OUT
     shell:
