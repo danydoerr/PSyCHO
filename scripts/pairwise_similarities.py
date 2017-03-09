@@ -413,6 +413,9 @@ if __name__ == '__main__':
                     '[0, 1]. Edges with stringency lower than stringency' + \
                     'than given threshold value are removed from the ' + \
                     'input graph [default: %default]')
+    parser.add_option('-N', '--numeric', dest='sortNumeric', action='store_true',
+            help='sort input genomes numerically (rather than alphabetic)',
+            default='')
     parser.add_option('-f', '--fasta_dir', dest='fastaDir', type=str,
             help='Directory in which fasta files are located that ' + \
                     'correspond to the input files. If nothing is ' + \
@@ -447,13 +450,21 @@ if __name__ == '__main__':
     cf.setFormatter(logging.Formatter('%(levelname)s\t%(asctime)s\t%(message)s'))
     LOG.addHandler(cf)
     LOG.addHandler(ch)
+
+    blastFiles = args
+    if options.sortNumeric:
+        _, blastFiles = zip(*sorted(map(lambda x: (int(''.join(re.findall('\d+',
+            basename(x)))), x), blastFiles)))
+    else:
+        blastFiles.sort()
+
     
-    genes, fastaFiles = readGenesFromFasta(sorted(args), options.fastaDir or
+    genes, fastaFiles = readGenesFromFasta(blastFiles, options.fastaDir or
             dirname(args[0]))
     gNames = map(lambda x: basename(x).rsplit('.', 1)[0], fastaFiles)
     gene2genome = dict(chain(*(izip(v, repeat(k, len(v))) for k,v in
         genes.items())))
-    G = constructGeneGraph(sorted(args), gene2genome, options.selfComparison)
+    G = constructGeneGraph(blastFiles, gene2genome, options.selfComparison)
      
     LOG.info('Number of active genes in genomes')
     LOG.info('\n'.join(map(lambda x: '\t%s\t%s'%(x[0], len(x[1])),
