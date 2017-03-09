@@ -4,45 +4,42 @@ from sys import stdout, stderr, exit
 from os.path import join, dirname, isfile
 from itertools import izip, chain
 from optparse import OptionParser
-import shelve
+import json
 import re
 
-from pairwise_similarities import readGenomeMap, GM_ACTV_GNS_KEY, \
-        GENOME_MAP_FILE
-from psycho import node
-
-PAT_CHR = re.compile('.*\|chromosome\|([^\|]+)(\|.*|$)')
-PAT_POS = re.compile('.*\|(\d+):(\d+)(\|.*|$)')
+from psycho import dict2hierarchy 
+from pairwise_similarities import PAT_POS, PAT_CHR
 
 MIN_SIZE = 10
 
 
-def compute_coverage(root, gene_orders, g2pos, marker_loc, ref):
-    covered_markers = list(set() for _ in gene_orders[0])
+def compute_coverage(root, marker_seq_list, recovered_markers, ref):
+    covered_markers = list(set() for _ in marker_seq_list[0])
 
-    queue = [(root, None)]
+    queue = [root]
     while queue:
-        u, u_id = queue.pop()
-        # remember found u_id in top-down traversal 
-        if u.id != None:
-            u_id = u.id
-        if u_id != None and u.links:
-            gos = gene_orders[u_id]
-            gos2pos = g2pos[u_id]
-            for x, gx1, gx2 in chain(((ref, u.intt[0], u.intt[1]),), u.links):
-                covered_markers[x].update(gos[x][gos2pos[x][gx1]:gos2pos[x][gx2]+1])
+        u = queue.pop()
+        if u.links:
+            gos = marker_seq_list[u.id]
+            for x, start, end in chain(((ref, u.intt[0], u.intt[1]),), u.links):
+                for p in xrange(start, end+1):
+                    if gos[x][p] not in recovered_markers[x]:
+                        m = PAT_POS.match(gos[x][p])
+                        if m:
+                            covered_markers[x].add(tuple(map(int,
+                                m.group(1,2))))
         else:
             for child in u.children:
                 if child.children:
-                    queue.append((child, u_id))
+                    queue.append(child)
+
     res = list()
-    for x in xrange(len(covered_markers)):
-        res.append(sum(map(lambda z: marker_loc[x][z][1] -
-            marker_loc[x][z][0]+1, covered_markers[x])))
+    for x in covered_markers:
+        res.append(sum(map(lambda z: z[1]-z[0]+1, x)))
     return res
 
 if __name__ == '__main__':
-    usage = '%prog [options] <SHELVE>'
+    usage = '%prog [options] <PSYCHO JSON OUTPUT>'
     parser = OptionParser(usage=usage)
 
     (options, args) = parser.parse_args()
@@ -52,16 +49,15 @@ if __name__ == '__main__':
         parser.print_help()
         exit(1)
 
-
-    shObj = shelve.open(args[0], flag='r', protocol=-1)
-    ref = shObj['ref']
-
     #
-    # load inclusion tree
+    # load hiearchy data
     #
-    root = shObj['inclusion_tree']
-    genomes = shObj['genomes']
-    gene_orders = shObj['gene_orders']
+    jsDict = json.load(open(args[0]))
+    ref = jsDict['ref_id']
+    root = dict2hierarchy(jsDict['sb_hierarchy'])
+    genomes = jsDict['genome_names']
+    marker_seq_list = jsDict['marker_seq_list']
+    recovered_markers = jsDict['recovered_markers']
     
     queue = [(root, 1)]
     depths = list()
@@ -80,32 +76,10 @@ if __name__ == '__main__':
     print >> stdout, 'max tree depth: %s' %max(depths)
     print >> stdout, 'avg tree depth: %s' %(sum(depths)/float(len(depths)))
     print >> stdout, '# internal nodes w. links: %s' %syn_blocks
-    print >> stdout, '# top-level blocks: %s' %sum(1 for x in gene_orders if
+    print >> stdout, '# top-level blocks: %s' %sum(1 for x in marker_seq_list if
             all(map(lambda y: len(y)-2 > MIN_SIZE, x)))
 
-    #
-    # read marker positions from marker fasta files
-    #
-    gMapF = join(dirname(shObj['orig_pw_dists'][0]), GENOME_MAP_FILE)
-    if not isfile(gMapF):
-        print >> stderr, ('ERROR: unable to find genome map at assumed ' + \
-                'location %s. Exiting') %gMapF
-        exit(1)
-
-    gMap = readGenomeMap(open(gMapF)) 
-    marker_loc = list()
-    for Gx in genomes:
-        m_dict = dict()
-        for x in xrange(len(gMap[Gx][GM_ACTV_GNS_KEY])):
-            gx1 = gMap[Gx][GM_ACTV_GNS_KEY][x]
-            m_dict[(PAT_CHR.match(gx1).group(1), x+1)] = map(int, \
-                    PAT_POS.match(gx1).group(1,2))
-        marker_loc.append(m_dict)
-           
-    g2pos = [[dict(izip(go, xrange(len(go)))) for go in gos] for gos in \
-            gene_orders]
-
-    coverage = compute_coverage(root, gene_orders, g2pos, marker_loc, shObj['ref'])
+    coverage = compute_coverage(root, marker_seq_list, recovered_markers, ref)
     print >> stdout, 'coverage:'
     for x in xrange(len(coverage)):
         print >> stdout, '\t%s:\t%s' %(genomes[x], coverage[x])

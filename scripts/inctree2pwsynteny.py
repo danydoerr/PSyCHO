@@ -3,15 +3,13 @@
 from sys import stdout, stderr, exit
 from optparse import OptionParser
 from os.path import dirname, join, isabs
-from itertools import izip
-import shelve
+from itertools import izip, chain
+import json
 import re
 
-from psycho import node
+from psycho import dict2hierarchy, CONTIG_BOUNDARY_KEY
 from pairwise_similarities import readGenomeMap, GENOME_MAP_FILE, \
-        GM_ACTV_GNS_KEY, PAT_CHR
-
-START_END_PAT = re.compile('^.*\|([0-9]+):([0-9]+)(\||$)')
+        GM_ACTV_GNS_KEY, PAT_CHR, PAT_POS
 
 BREWER_COL = ['blues-%s-seq-3', 'bugn-%s-seq-3', 'bupu-%s-seq-3', 'gnbu-%s-seq-3', \
         'greens-%s-seq-3', 'greys-%s-seq-3', 'oranges-%s-seq-3', 'orrd-%s-seq-3', \
@@ -44,7 +42,7 @@ def getSims(ref_int, y_bounds):
     return res_x, res_y
 
 if __name__ == '__main__':
-    usage = '%prog [options] <SHELVE> <TARGET GENOME>'
+    usage = '%prog [options] <PSYCHO JSON OUTPUT> <TARGET GENOME>'
     parser = OptionParser(usage=usage)
     parser.add_option('-c', '--color_links', dest='colorLinks', default=False,
             action='store_true', help='Color links individually')
@@ -75,24 +73,24 @@ if __name__ == '__main__':
         parser.print_help()
         exit(1)
 
-    shObj = shelve.open(args[0], flag='r', protocol=-1)
-    genomes = shObj['genomes']
+    jsDict = json.load(open(args[0])) 
+    genomes = jsDict['genome_names']
     genomes2id = dict(zip(genomes, xrange(len(genomes))))
 
-    # XXX only for debugging purposes
-    from pairwise_similarities import readDists, reverseDistMap
-    from os.path import basename
+#    # XXX only for debugging purposes
+#    from pairwise_similarities import readDists, reverseDistMap
+#    from os.path import basename
+#
+#    dists = dict((tuple(basename(x).split('.')[0].split('_')), \
+#            readDists(open(isabs(x) and x or join(dirname(args[0]), x)))[1]) for \
+#            x in jsDict['orig_pw_dists'])
+#    dists.update(((k[1], k[0]), reverseDistMap(v)) for k,v in dists.items())
+#    
+#    dpath = dirname(jsDict['orig_pw_dists'][0])
+#    genomeMap = readGenomeMap(open(join(isabs(dpath) and dpath or
+#        join(dirname(args[0]), dpath), GENOME_MAP_FILE)))
 
-    dists = dict((tuple(basename(x).split('.')[0].split('_')), \
-            readDists(open(isabs(x) and x or join(dirname(args[0]), x)))[1]) for \
-            x in shObj['orig_pw_dists'])
-    dists.update(((k[1], k[0]), reverseDistMap(v)) for k,v in dists.items())
-    
-    dpath = dirname(shObj['orig_pw_dists'][0])
-    genomeMap = readGenomeMap(open(join(isabs(dpath) and dpath or
-        join(dirname(args[0]), dpath), GENOME_MAP_FILE)))
-
-    ref = shObj['ref']
+    ref = jsDict['ref_id']
     G0 = genomes[ref]
     G1 = args[1]
     if G1 not in genomes:
@@ -101,28 +99,22 @@ if __name__ == '__main__':
 
     id1 = genomes2id[G1]
 
-    gene_orders = shObj['gene_orders']
+    marker_seq_list = jsDict['marker_seq_list']
     g2pos = [[dict(izip(go, xrange(len(go)))) for go in gos] for gos in \
-            gene_orders]
+            marker_seq_list]
+    recovered_markers = jsDict['recovered_markers']
 
-    recovered_markers = shObj['recovered_markers']
-
-    fa1 = [map(int, START_END_PAT.match(sid).group(1,2)) for sid in
-            genomeMap[G0][GM_ACTV_GNS_KEY]] 
-    fa2 = [map(int, START_END_PAT.match(sid).group(1,2)) for sid in
-            genomeMap[G1][GM_ACTV_GNS_KEY]] 
-    
-    chr1s = sorted(set(map(lambda x: '%s.%s'%(G0.lower(),\
-            PAT_CHR.match(x).group(1).lower()), \
-            genomeMap[G0][GM_ACTV_GNS_KEY])))
-    chr2s = sorted(set(map(lambda x: '%s.%s'%(G1.lower(),\
-            PAT_CHR.match(x).group(1).lower()), \
-            genomeMap[G1][GM_ACTV_GNS_KEY])))
+    chr1s = sorted(set('%s.%s'%(G0.lower(), PAT_CHR.match(x).group(1).lower()) \
+            for x in chain(*map(lambda m: m[ref], marker_seq_list)) if x != \
+            CONTIG_BOUNDARY_KEY))
+    chr2s = sorted(set('%s.%s'%(G1.lower(), PAT_CHR.match(x).group(1).lower()) \
+            for x in chain(*map(lambda m: m[id1], marker_seq_list)) if x != \
+            CONTIG_BOUNDARY_KEY))
 
     #
     # load inclusion tree
     #
-    root = shObj['inclusion_tree']
+    root = dict2hierarchy(jsDict['sb_hierarchy'])
 #    print >> stderr, '++ loading inclusion tree of genome %s from shelve' %G0
     
     suffix = 'main'
@@ -137,80 +129,71 @@ if __name__ == '__main__':
     link_out = open(join(options.outDir, '%s_%s_%s.links' %(G0, G1, suffix)),
             'w')
 
-    queue = [(root, None, 1)]
+    queue = [(root, 1)]
     res = set()
     level = dict()
     while queue:
-        u, u_id, u_depth = queue.pop()
-
-        if u.id != None:
-            u_id = u.id
+        u, u_depth = queue.pop()
 
         hasHit = False
-        if u_id != None:
-            u_end = u_start = None
-
-            gos = gene_orders[u_id]
-            gos2pos = g2pos[u_id]
-            if u.intt[0] in recovered_markers:
-                p = gos2pos[(ref, u.intt[0])]
-                while p > 0 and gos[ref][p] in recovered_markers:
-                    p -= 1
-                u_start = fa1[gos[ref][p]][1]
-
-            if u.intt[1] in recovered_markers:
-                p = gos2pos[(ref, u.intt[1])]
-                while p < len(gos[ref])-1 and gos[ref][p] in recovered_markers:
-                    p += 1
-                u_end = fa1[gos[ref][p]][0]
-
-            if u_start == None:
-                u_start = fa1[u.intt[0][1]-1][0]
-
-            if u_end == None: 
-                u_end = fa1[u.intt[1][1]-1][1]+1
-            
-            d1 = gos2pos[ref][u.intt[1]]-gos2pos[ref][u.intt[0]]+1
+        if u.id != None:
+            d1 = u.intt[1]-u.intt[0]+1
             if d1 < options.min:
                 continue
 
+            gos = marker_seq_list[u.id]
+            gos2pos = g2pos[u.id]
+
+            u_start, u_end = u.intt
+            while u_start > 0 and gos[ref][u_start] in recovered_markers[ref]:
+                u_start -= 1
+            while u_end < len(gos[ref])-1 and gos[ref][u_end] in \
+                    recovered_markers[ref]:
+                u_end += 1
+
+            # if the boundary of the syntenic block has been extended due to
+            # recovered markers, take the inner extremity of the neighboring
+            # marker, otherwise the outer extremity of the contained marker
+            u_start_p = int(PAT_POS.match(gos[ref][u_start]).group(u_start
+                == u.intt[0] and 1 or 2))
+            u_end_p   = int(PAT_POS.match(gos[ref][u_end]).group(u_end ==
+                u.intt[1] and 2 or 1))
+            u_chr = PAT_CHR.match(gos[ref][u_start]).group(1)
+
             if u.links and (not u.parent or u.parent.links != u.links):
-                for (y, start, end) in u.links:
-                    if y != id1:
+                for i in xrange(len(u.links)):
+                    y, start, end = u.links[i]
+
+                    d2 = end-start+1
+                    if y != id1 or d2 < options.min:
                         continue
-                    v_end = v_start = None
-                    if start in recovered_markers:
-                        p = gos2pos[(y, start)]
-                        while p > 0 and gos[y][p] in recovered_markers:
-                            p -= 1
-                        v_start = fa2[gos[y][p]][1]
 
-                    if end in recovered_markers:
-                        p = gos2pos[(ref, end)]
-                        while p < len(gos[y])-1 and gos[y][p] in \
-                                recovered_markers:
-                            p += 1
-                        v_end = fa2[gos[y][p]][0]
+                    while start > 0 and gos[y][start] in recovered_markers[y]:
+                        start -= 1
+                    while end < len(gos[y])-1 and gos[y][end] in \
+                            recovered_markers[y]:
+                        end += 1
 
-                    if v_start == None:
-                        v_start = fa2[start[1]-1][0]
-
-                    if v_end == None: 
-                        v_end = fa2[end[1]-1][1]+1
-
-                    d2 = gos2pos[y][end]-gos2pos[y][start]+1
-                    if d2 >= options.min:
-#                        if max(d1,d2)/float(min(d1,d2)) >= 3:
-#                            sims = getSims(u.intt, (y, start, end))
-#                            import pdb; pdb.set_trace() 
-                        link = (G0.lower(), u.intt[0][0].lower(), u_start, u_end,\
-                                genomes[y].lower(), start[0].lower(), v_start, \
-                                v_end)
-                        res.add(link)
-                        level[link] = level.get(link, u_depth)
-                        hasHit = True
+                    # if the boundary of the syntenic block has been extended
+                    # due to recovered markers, take the inner extremity of the
+                    # neighboring marker, otherwise the outer extremity of the
+                    # contained marker
+                    v_start_p = int(PAT_POS.match(gos[y][start]).group(\
+                            start == u.links[i][1] and 1 or 2))
+                    v_end_p = int(PAT_POS.match(gos[y][end]).group(end \
+                            == u.links[2] and 2 or 1))
+                    v_chr = PAT_CHR.match(gos[y][start]).group(1)
+#                   if max(d1,d2)/float(min(d1,d2)) >= 3:
+#                       sims = getSims(u.intt, (y, start, end))
+#                       import pdb; pdb.set_trace() 
+                    link = (G0.lower(), u_chr.lower(), u_start_p, u_end_p,\
+                            genomes[y].lower(), v_chr.lower(), v_start_p, \
+                            v_end_p)
+                    res.add(link)
+                    level[link] = level.get(link, u_depth)
+                    hasHit = True
         if not hasHit or options.subInts or options.level > u_depth:
-            queue.extend(map(lambda y: (y, u_id, min(hasHit and u_depth+1 or u_depth,
+            queue.extend(map(lambda y: (y, min(hasHit and u_depth+1 or u_depth,
                 5)), filter(lambda x: len(x.children) > 1, u.children)))
 
     res = sorted(res)
@@ -245,7 +228,7 @@ if __name__ == '__main__':
     c_max = len(BREWER_COL_RANGE) * len(BREWER_COL)
     if options.colorLinks:
         x = 0
-        for Gx, chrx, startx, endx, _, _, starty, endy, in res:
+        for Gx, chrx, startx, endx, _, _, starty, endy, in set(res):
             r = (x % c_max) / len(BREWER_COL)
             i = (x % c_max) % len(BREWER_COL)
             print >> circos_out, '%s.%s.%s.%s.%s.%s.l = %s' %(Gx, chrx, startx, endx,
