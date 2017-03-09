@@ -68,7 +68,7 @@ class node(object):
         out += '%s{%s-%s}' %(self.type or '?', self.intt[0],
                 self.intt[1])
         if self.links:
-            out+= '->[%s]' %(' '.join(map(lambda x: '%s:%s-%s' %x,
+            out+= '->[%s]' %(' '.join(map(lambda x: '%s:%s-%s' %tuple(x),
                 self.links)))
         return out
 
@@ -76,7 +76,7 @@ def hierarchy2dict(root):
 
     res = list()
 
-    queue = deque(((root, 1), ))
+    queue = deque(((root, None), ))
 
     offset = 1
     while queue:
@@ -99,7 +99,7 @@ def dict2hierarchy(JSON_list):
     nodes = map(lambda x: node(x['ref_sb'][0], x['ref_sb'][1],
         id=x['marker_seq_id'], links=x['linked_sbs']), JSON_list)
     refd = set(xrange(len(JSON_list)))
-    for x in xrange(JSON_list):
+    for x in xrange(len(JSON_list)):
         child_ids = JSON_list[x].get('children', ())
         refd.difference_update(child_ids)
         for i in child_ids:
