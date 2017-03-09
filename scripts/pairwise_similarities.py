@@ -14,6 +14,7 @@ import re
 
 PAT_BLASTTBL = re.compile('^(.*\.\w+)\.blast\w*$', re.IGNORECASE)
 PAT_CHR = re.compile('.*\|chromosome\|([^\|]+)(\|.*|$)')
+PAT_POS = re.compile('^.*\|([0-9]+):([0-9]+)(\||$)')
 PAT_STRAND = re.compile('.*\|strand\|([^\|]+)(\|.*|$)')
 
 DIRECTION_CRICK_STRAND = '+'
