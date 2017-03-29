@@ -30,6 +30,7 @@ def readFastaFiles(seqFiles, mauveFile):
         LOG.info('reading %s with identifier %s' %(f, ident))
         cur_len = 0
         for record in SeqIO.parse(open(f), 'fasta'):
+            cur_len += len(record)
             if ident not in seqRecords:
                 seqRecords[ident] = [f, record]
                 chr_locations[ident] = list() 
@@ -42,7 +43,6 @@ def readFastaFiles(seqFiles, mauveFile):
                 chr_id = m.group(1)
 
             chr_locations[ident].append((cur_len, chr_id))
-            cur_len += len(record)
     
     # put list into order indicated by mauve backbone filename
     seqList = list()
@@ -59,9 +59,9 @@ def readFastaFiles(seqFiles, mauveFile):
 
     return seqList, chr_loc_list
 
-def parseMauveBackbone(seqData, chr_locations, mauveFile, minLength, quorum):
+def parseMauveBackbone(mauveFile, minLength, quorum):
 
-    genomes = [list() for _ in seqData]
+    mauveSegments = [list() for _ in seqData]
     orthologies = list()
 
     isHeader = True
@@ -78,43 +78,87 @@ def parseMauveBackbone(seqData, chr_locations, mauveFile, minLength, quorum):
             if line[i*2] == '0':
                 continue
            
-            ident = basename(seqData[i][0]).rsplit('.', 1)[0]
             orient = int(line[i*2]) >= 0 and '+' or '-'
-            start, end = abs(int(line[i*2]))-1, abs(int(line[i*2+1]))
+            start, end = abs(int(line[i*2])), abs(int(line[i*2+1]))
 
             if end-start <= 0:
-                LOG.warning(('sequence length of segment %s[%s:%s] is %s in' + \
-                        ' line: \n\t\t%s') %(ident, line[i*2], line[i*2+1],
-                            end-start-1, '\t'.join(line)))
+                LOG.warning(('sequence length of segment seq%s[%s:%s] is %s in' + \
+                        ' line: \n\t\t%s') %(i, line[i*2], line[i*2+1],
+                            end-start+1, '\t'.join(line)))
 
-            if end-start-1 < minLength:
+            if end-start+1 < minLength:
                 continue
 
-            seqRecord = seqData[i][1][start:end]
-            if orient == '-':
-                seqRecord = seqRecord.reverse_complement()
-
-            x = bisect(chr_locations[i], (start, chr(255)))
-            chr_start, chr_name = chr_locations[i][x-1]
-            gid = '%s_%s' %(ident, outCount)
-            g1i = (gid, start+1-chr_start, end-chr_start, chr_name, orient)
+            g1i = (outCount, start, end, orient)
             cur_orth.append((i, g1i))
-            seqRecord.id = '%s|%s:%s|chromosome|%s|strand|%s' %g1i
-            seqRecord.description = ''
-            seqRecords[i] = seqRecord
         
         if len(cur_orth) >= quorum:
             for i, g1i in cur_orth:
-                genomes[i].append((g1i, seqRecords[i]))
+                mauveSegments[i].append(g1i)
             orthologies.extend(combinations(map(lambda x: x[1], cur_orth), 2))
             outCount += 1
 
-    for i in xrange(len(genomes)):
-        genomes[i].sort(key=lambda x: (x[0][3], x[0][1], x[0][2]))
-        genomes[i] = map(lambda x: x[1], genomes[i])
+    for i in xrange(len(mauveSegments)):
+        mauveSegments[i].sort(key=lambda x: (x[1], x[2]), cmp=lambda y,z:
+                cmp(y[0], z[0]) or -cmp(y[1], z[1]))
     
     LOG.info('Identified %s SBFs larger length %s' %(outCount, minLength))
-    return genomes, orthologies
+    return mauveSegments, orthologies
+
+
+def removeDuplAndStrip(mauveSegments):
+    res = [mauveSegments[0]]
+    for i in xrange(1, len(mauveSegments)):
+        # check if disjoint
+        if res[-1][2] < mauveSegments[i][1]:
+            res.append(mauveSegments[i])
+        # check if not contained
+        elif res[-1][2] < mauveSegments[i][2]:
+            if res[-1][2]-res[-1][1] > mauveSegments[i][2]-mauveSegments[i][1]:
+                res[-1] = (res[-1][0], res[-1][1], mauveSegments[i][1]-1,
+                        res[-1][3])
+                res.append(mauveSegments[i])
+            else:
+                res.append((mauveSegments[i][0], res[-1][2]+1,
+                    mauveSegments[i][2], mauveSegments[i][3]))
+        # skip (i.e. do not append) otherwise
+    return res
+
+
+def writeSegments(seqData, chr_locations, mauveSegments, ident, minLength, out, stripNs=False):
+
+    c = i = chr_start = 0
+    chr_end, chr_name = chr_locations[c]
+    while i < len(mauveSegments):
+        iid, start, end, orient = mauveSegments[i]
+        gid = '%s_%s' %(ident, iid)
+
+        while c < len(chr_locations)-1 and chr_end <= start-1:
+            chr_start = chr_locations[c][0]
+            c += 1
+            chr_end, chr_name = chr_locations[c]
+       
+        if end > chr_end:
+            if end-chr_end >= minLength and c < len(chr_locations)-1:
+                mauveSegments[i] = ('%s\'' %iid, chr_end+1, end, orient)
+                i -= 1
+
+            end = chr_end
+
+
+        while stripNs and end-start+1 >= minLength and seqData[1][start-1].upper() == 'N':
+            start += 1
+        while stripNs and end-start+1 >= minLength and seqData[1][end-1].upper() == 'N':
+            end -= 1
+        if end-start+1 >= minLength:
+            seqRecord = seqData[1][start-1:end]
+            if orient == '-':
+                seqRecord = seqRecord.reverse_complement()
+            seqRecord.id = '%s|%s:%s|chromosome|%s|strand|%s' %(gid,
+                    start-chr_start, end-chr_start, chr_name, orient)
+            seqRecord.description = ''
+            SeqIO.write(seqRecord, out, 'fasta')
+        i += 1
 
 
 if __name__ == '__main__':
@@ -165,14 +209,17 @@ if __name__ == '__main__':
             + 'backbone data using minimum segment length %s') %options.minLength)
     seqData, chr_locations = readFastaFiles(seqFiles, mauveFile)
     LOG.info('processing backbone file')
-    genomes, _ = parseMauveBackbone(seqData, chr_locations, mauveFile,
-            options.minLength, options.genomeQuorum)
+    mauveSegments, _ = parseMauveBackbone(mauveFile, options.minLength,
+            options.genomeQuorum)
 
-    # initialize output handles
-    for i in xrange(len(seqData)):
-        out = open('%s.gos' %join(options.outDir, basename(seqData[i][0]).rsplit('.',
-            1)[0]), 'w')
-        SeqIO.write(genomes[i], out, 'fasta')
+    for x in xrange(len(mauveSegments)):
+        ident = basename(seqData[x][0]).rsplit('.', 1)[0]
+        out = open('%s.gos' %join(options.outDir, ident), 'w')
+        LOG.info('Writing %s' %out.name)
+        segments = removeDuplAndStrip(mauveSegments[x])
+        writeSegments(seqData[x], chr_locations[x], segments, ident,
+                options.minLength, out, True)
+        out.close()
 
     LOG.info('finished')
 
