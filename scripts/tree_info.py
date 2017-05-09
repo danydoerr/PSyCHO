@@ -35,7 +35,7 @@ def compute_coverage(root, marker_seq_list, recovered_markers, ref):
 
     res = list()
     for x in covered_markers:
-        res.append(sum(map(lambda z: z[1]-z[0]+1, x)))
+        res.append((sum(map(lambda z: z[1]-z[0]+1, x)), len(x)))
     return res
 
 if __name__ == '__main__':
@@ -82,8 +82,8 @@ if __name__ == '__main__':
                 xrange(len(genomes)))))
 
     coverage = compute_coverage(root, marker_seq_list, recovered_markers, ref)
-    print >> stdout, 'coverage:'
+    print >> stdout, 'coverage (#markers):'
     for x in xrange(len(coverage)):
-        print >> stdout, '\t%s:\t%s' %(genomes[x], coverage[x])
+        print >> stdout, '\t%s:\t%s (%s)' %(genomes[x], coverage[x][0], coverage[x][1])
 
 
