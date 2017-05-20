@@ -58,7 +58,7 @@ if __name__ == '__main__':
     genomes = jsDict['genome_names']
     marker_seq_list = jsDict['marker_seq_list']
     recovered_markers = jsDict['recovered_markers']
-    
+
     queue = [(root, 1)]
     depths = list()
     syn_blocks = 0
