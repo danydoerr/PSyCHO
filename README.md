@@ -54,4 +54,4 @@ TUTORIAL
       acoording to their file names)
     * pwsynteny_plot_params: parameters of the 'inctree2pwsynteny.py' script
       for pairwise visualization of the synteny hierarchy
-3. Run 'snakemake --cores <number of cores you want to allocate for running PSyCHO>
+3. Run 'snakemake --cores {number of cores you want to allocate for running PSyCHO}
