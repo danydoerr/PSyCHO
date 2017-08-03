@@ -3,24 +3,31 @@ blast_cmd: blastn
 blast_db_endings: [nhd, nhi, nhr, nin, nog, nsd, nsi, nsq]
 blast_db_name: database
 blast_db_type: nucl
-blast_dir: /opt/biotools/blast2/bin
+blast_dir: /opt/biotools/blast/bin/
 blast_out: blast
 blast_params: -task=blastn -evalue=0.00001
+
+fasta_cmd: /opt/biotools/fasta36/bin/ggsearch36
+fasta_db_name: database.fna
+fasta_db_type: nucl
+fasta_out: fasta
+fasta_params: -E0.00001
+
 circos_cmd: /opt/biotools/circos/bin/circos
 genome_data_dir: genomes
 marker_min_length: 300
 markers_dir: markers
-mauve_cmd: /opt/biotools/mauve/linux-x64/progressiveMauve
+mauve_cmd: /opt/biotools/mauve/progressiveMauve
 mauve_out_dir: mauve
 mauve_seed_weight: 21
 mkblastdb_cmd: makeblastdb
-psycho_delta: 15
+psycho_delta: 200
 psycho_cov: 3
 psycho_out: hierarchies
 psycho_ref: 0
 pw_out: homologies
 pw_stringency: 0.1
-pwsynteny_plot_params: -m 10 -c # add -s to plot sublevels
+pwsynteny_plot_params: -m 10 -c -s # add -s to plot sublevels
 pysuf: .py
 python2_bin: ''
 tmp_dir: ~/.tmp

@@ -12,27 +12,31 @@ GENOMES = sorted(glob('%s/*.fna' %GENOMES_DIR))
 
 MAUVE_CMD = config['mauve_cmd']
 MAUVE_OUT = '%s/%s_sw%s' %(config['mauve_out_dir'], basename(MAUVE_CMD),
-config['mauve_seed_weight'])
+        config['mauve_seed_weight'])
 
 MARKERS_DIR = '%s/%s_marker_l%s' %(config['markers_dir'], basename(MAUVE_OUT),
-config['marker_min_length'])
+        config['marker_min_length'])
 MARKERS_FILES = ['%s/%s.gos' %(MARKERS_DIR, basename(x[:x.rfind('.')])) for x
-in GENOMES]
+        in GENOMES]
 
 BLAST_DIR = config['blast_dir']
 BLAST_PARSTR = config['blast_params'].replace('-', '').replace(' ', '_')
 BLAST_OUT = '%s/%s_%s_%s' %(config['blast_out'], basename(MARKERS_DIR), 
-config['blast_cmd'], BLAST_PARSTR)
+        config['blast_cmd'], BLAST_PARSTR)
 
-PW_OUT = '%s/%s_pwsim_n2_S_s%s' %(config['pw_out'], basename(BLAST_OUT),
-config['pw_stringency'])
+FASTA_PARSTR = config['fasta_params'].replace('-', '').replace(' ', '_')
+FASTA_OUT = '%s/%s_%s_%s' %(config['fasta_out'], basename(MARKERS_DIR), 
+        basename(config['fasta_cmd']), FASTA_PARSTR)
+
+PW_OUT = '%s/%s_pwsim_n2_S_s%s' %(config['pw_out'], basename(FASTA_OUT),
+        config['pw_stringency'])
 PW_SIMS = ['%s/%s_%s.sim' %(PW_OUT, x[0], x[1]) for x in
-chain(combinations((basename(y[:y.rfind('.')]) for y in GENOMES), 2),
-zip(*repeat([basename(y[:y.rfind('.')]) for y in GENOMES], 2)))]
+        chain(combinations((basename(y[:y.rfind('.')]) for y in GENOMES), 2),
+        zip(*repeat([basename(y[:y.rfind('.')]) for y in GENOMES], 2)))]
 
 REF = basename(GENOMES[int(config['psycho_ref'])].rsplit('.', 1)[0])
 HIERARCHY_OUT = '%s/%s_psycho_d%s_ref_%s' %(config['psycho_out'],
-basename(PW_OUT), config['psycho_delta'], REF)
+        basename(PW_OUT), config['psycho_delta'], REF)
 
 CIRCOS_CMD = config['circos_cmd']
 CIRCOS_PLOT_SUFFIX = config['pwsynteny_plot_params'].find('-s') < 0 and 'main' or 'sub'
@@ -128,9 +132,35 @@ rule run_blast:
         ' -num_threads ' + '{threads} {params.blast_params} < '
         '{input.markers_file} > {output} 2> {log}'
 
+rule concat_markers:
+    input:
+        MARKERS_FILES
+    output:
+        temp('%s/%s' %(config['fasta_out'], config['fasta_db_name']))
+    shell:
+        'mkdir -p %s; cat {input} > {output};' %config['fasta_out']
+
+rule run_fasta:
+    input:
+        markers_file = MARKERS_DIR + '/{markers}.gos',
+        fasta_db = '%s/%s' %(config['fasta_out'], config['fasta_db_name'])
+    params:
+        dbtype = config['fasta_db_type'].startswith('nucl') and '-n' or '',
+        fasta_params = config['fasta_params']
+    output:
+        FASTA_OUT + '/{markers}.gos.blasttbl'
+    log:
+        FASTA_OUT + '/fasta.log'
+    threads: 
+        20
+    shell:
+        '%s {params.dbtype} -m8 -T {threads} ' %config['fasta_cmd'] +
+        '{params.fasta_params} {input.markers_file} {input.fasta_db} > '
+        '{output} 2> {log}'
+
 rule run_pairwise_similarities:
     input:
-        expand('%s/{markers}.gos.blasttbl' %BLAST_OUT,
+        expand('%s/{markers}.gos.blasttbl' %FASTA_OUT,
         markers=[basename(x[:x.rfind('.')]) for x in GENOMES])
     params:
         stringency = config['pw_stringency'],
