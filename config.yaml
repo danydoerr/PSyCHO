@@ -3,21 +3,21 @@ blast_cmd: blastn
 blast_db_endings: [nhd, nhi, nhr, nin, nog, nsd, nsi, nsq]
 blast_db_name: database
 blast_db_type: nucl
-blast_dir: /opt/biotools/blast/bin/
+blast_dir: /path/to/blast_dir
 blast_out: blast
 blast_params: -task=blastn -evalue=0.00001
 
-fasta_cmd: /opt/biotools/fasta36/bin/ggsearch36
+fasta_cmd: /path/to/fasta_cmd 
 fasta_db_name: database.fna
 fasta_db_type: nucl
 fasta_out: fasta
 fasta_params: -E0.00001
 
-circos_cmd: /opt/biotools/circos/bin/circos
+circos_cmd: /path/to/circos
 genome_data_dir: genomes
 marker_min_length: 300
 markers_dir: markers
-mauve_cmd: /opt/biotools/mauve/progressiveMauve
+mauve_cmd: /path/to/progressiveMauve
 mauve_out_dir: mauve
 mauve_seed_weight: 21
 mkblastdb_cmd: makeblastdb
