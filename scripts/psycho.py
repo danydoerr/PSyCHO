@@ -312,7 +312,7 @@ def division(L, G, B, ref):
     return LX, GX
 
 
-def findTeams(L, G, res, delta):
+def findTeams(L, G, ref, delta):
 
     res = list()
    
