@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
 from sys import argv,stdout,stderr,exit
-from os.path import basename, exists
+from os.path import basename, join, abspath
 from Bio import SeqIO
 from Bio.Seq import Seq, Alphabet
 from string import maketrans
@@ -10,6 +11,7 @@ import csv
 
 TRANS_TABLE=maketrans('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',\
         'ANCNNNGNNNNNNNNNNNNTNNNNNMancnnngnnnnnnnnnnnntnnnnnn')
+DEFAULT_OUT_DIR = '.'
 
 def readSegments(data):
     res = dict()
@@ -36,17 +38,23 @@ def paritionRecord(record, segments):
 
 if __name__ == '__main__':
 
-    if len(argv) < 3:
-        print '\tusage: %s <ATOM FILE> <FASTA FILE 1> ... <FASTA FILE N>' %argv[0]
-        exit(1)
-    
-    segments = readSegments(open(argv[1]))
+    parser = ArgumentParser(formatter_class=ADHF)
+    parser.add_argument('-o', '--out_dir', default=DEFAULT_OUT_DIR, type=str,
+            help='prefix of output filename')
+    parser.add_argument('atoms_file', type=str, help='file containing atoms')
+    parser.add_argument('fasta_file', type=str, nargs='+', 
+            help='fasta files with original genomic sequences')
 
-    for f in argv[2:]:
-        outName = basename(f)
-        if exists(outName):
-            print >> stderr, ('File %s already exists. Unable to store ' + \
-                    'extracted sequence data. Exiting.') %outName
+    args = parser.parse_args()
+    
+    segments = readSegments(open(args.atoms_file))
+
+    for f in parser.fasta_file:
+        outName = join(args.out_dir, basename(f))
+        if abspath(outName) == abspath(f):
+            print >> stderr, ('Designated output file %s is same as its ' + \
+                    'correspondign input file.  Unable to store extracted' + \
+                    'sequence data. Exiting.') %abspath(outName)
             exit(1)
         out = open(outName, 'w')
         for record in SeqIO.parse(open(f), 'fasta'):
