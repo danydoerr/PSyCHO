@@ -49,7 +49,7 @@ if __name__ == '__main__':
     
     segments = readSegments(open(args.atoms_file))
 
-    for f in parser.fasta_file:
+    for f in args.fasta_file:
         outName = join(args.out_dir, basename(f))
         if abspath(outName) == abspath(f):
             print >> stderr, ('Designated output file %s is same as its ' + \
