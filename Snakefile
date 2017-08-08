@@ -89,9 +89,25 @@ rule concat_psl:
     shell:
         'cat {input} > {output};' 
 
+rule atomizer:
+    input:
+        '%s/all.psl' %BLAST_OUT,
+    params:
+        out_dir = SEGMENTATION_OUT,
+        min_len = config['marker_min_length'],
+        al_ident = config['sgmtn_alignment_ident'],
+        al_min_len = config['sgmtn_alignment_minlen'],
+        al_max_gap = config['sgmtn_alignment_maxgap']
+    output:
+        '%s/all.atoms' %SEGMENTATION_OUT
+    shell:
+        config['segmentation_cmd'] + ' {input} --minLength {params.min_len} '
+        '--minIdent {params.al_min_len} --minIdent {params.al_ident} --maxGap '
+        '{params.al_max_gap} > {output}'
+
 rule atoms_to_markers:
     input:
-        atoms_file = '%s/all.psl' %BLAST_OUT,
+        atoms_file = '%s/all.atoms' %SEGMENTATION_OUT,
         fasta_files = GENOMES
     params:
         out_dir = SEGMENTATION_OUT
