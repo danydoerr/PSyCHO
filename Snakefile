@@ -13,6 +13,8 @@ GENOMES = sorted(glob('%s/*.fna' %GENOMES_DIR))
 BLAST_DIR = config['blast_dir']
 BLAST_PARSTR = config['blast_params'].replace('-', '').replace(' ', '_')
 BLAST_OUT = '%s/%s_%s' %(config['blast_out'], config['blast_cmd'], BLAST_PARSTR)
+CORES = snakemake.get_argument_parser().parse_args().cores or 1 
+BLAST_THREADS = int(max(1, CORES/len(GENOMES)))
 
 SEGMENTATION_OUT = '%s/%s_ai%s_ag%s_al%s_m%s' %(config['segmentation_out'],
         basename(BLAST_OUT), config['sgmtn_alignment_ident'],
@@ -73,7 +75,7 @@ rule run_blast:
     log:
         BLAST_OUT + '/blastn.log'
     threads: 
-        8 
+        BLAST_THREADS
     shell:
         'mkdir -p "%s";' %BLAST_OUT +
         join(BLAST_DIR, config['blast_cmd']) + ' -db {params.dbname} '
