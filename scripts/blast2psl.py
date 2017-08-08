@@ -13,7 +13,7 @@ import re
 PAT_LENGTH     = re.compile('^\s*Length\s*=\s*(\d+)\s*$')
 PAT_HSP_START  = re.compile('^\s*Score\s*=\s*\d')
 PAT_HSP_INFO   = re.compile('(\w+)\s*=\s*([^,=]+)\s*(?=,|$)') 
-PAT_HSP_SCORE  = re.compile('^([0-9.e-]+) bits \(([0-9.e-]+)\)\s*$')
+PAT_HSP_SCORE  = re.compile('^([0-9.e+-]+) bits \(([0-9.e+-]+)\)\s*$')
 PAT_HSP_COUNTS = re.compile('^\s*(\d+)/(\d+) \([0-9.]+%\)\s*$')
 PAT_HSP_STRAND = re.compile('^\s*(Plus|Minus)\s*/\s*(Plus|Minus)\s*$')
 PAT_ALN_START  = re.compile('^\s*Query\s+\d')
@@ -92,13 +92,14 @@ def parseData(data, out):
                     _, hit_id = stack.pop()
                     hid = hit_id.split(' ', 1)
                     hit = Hit(id = hid[0], query_id = stack[-2][1].id)
+                    hit.query_description = stack[-2][1].description
                     if len(hid) > 1:
                         hit.description = hid[1]
                     setattr(hit, 'seq_len', int(m.group(1)))
                     stack[-1] = (ParseType.HIT, hit)
                     stack.append((ParseType.HSP, dict()))
                 else:
-                    stack[-1] = (ParseType.HIT_ID, stack[-1][1] + line[:-1])
+                    stack[-1] = (ParseType.HIT_ID, stack[-1][1] + ' ' + line[:-1])
 
             elif STATE == ParseType.HSP and (not line or line.strip()):
                 pat_hits = PAT_HSP_INFO.findall(line)
@@ -130,7 +131,9 @@ def parseData(data, out):
                 _, hsp = stack.pop()
                 hit = stack[-1][1]
                 hsp.query_id = hit.query_id
+                hsp.query_description = hit.query_description
                 hsp.hit_id = hit.id
+                hsp.hit_description = hit.description
                 setattr(hsp, 'n_num', sum(map(len, hsp.fragments)))
                 setattr(hsp, 'match_num', sum(map(lambda x: x.match_num,
                     hsp.fragments)))
@@ -226,29 +229,30 @@ def parseData(data, out):
                         if j == -1 or query[j] == '-' or sbjct[j] == '-':
                             qstrand, sstrand = info_dict.get('Strand', (0, 0))
                             j = j == -1 and len(match) or j
-                            f = HSPFragment(hit=sbjct[i:j], query=query[i:j])
-                            f.query_strand = qstrand
-                            f.hit_strand = sstrand
-                            if qstart < qend:
-                                f.query_start = qstart + i
-                                f.query_end = qstart + j - 1
-                                f.query_strand = 1
-                            else:
-                                f.query_end = qstart - i
-                                f.query_start = qstart - j + 1
-                                f.query_strand = -1
-                            if sstart < send:
-                                f.hit_start = sstart + i
-                                f.hit_end = sstart + j - 1
-                                f.hit_strand = 1
-                            else:
-                                f.hit_end = sstart - i
-                                f.hit_start = sstart - j + 1
-                                f.hit_strand = -1
-                            setattr(f, 'mismatch_num', mismatch_num)
-                            setattr(f, 'match_num', j-i-mismatch_num)
+                            if j > 0:
+                                f = HSPFragment(hit=sbjct[i:j], query=query[i:j])
+                                f.query_strand = qstrand
+                                f.hit_strand = sstrand
+                                if qstart < qend:
+                                    f.query_start = qstart + i
+                                    f.query_end = qstart + j - 1
+                                    f.query_strand = 1
+                                else:
+                                    f.query_end = qstart - i
+                                    f.query_start = qstart - j + 1
+                                    f.query_strand = -1
+                                if sstart < send:
+                                    f.hit_start = sstart + i
+                                    f.hit_end = sstart + j - 1
+                                    f.hit_strand = 1
+                                else:
+                                    f.hit_end = sstart - i
+                                    f.hit_start = sstart - j + 1
+                                    f.hit_strand = -1
+                                setattr(f, 'mismatch_num', mismatch_num)
+                                setattr(f, 'match_num', j-i-mismatch_num)
 
-                            frags.append(f)
+                                frags.append(f)
 
                             while j < len(query) and query[j] == '-':
                                 j += 1
