@@ -76,10 +76,9 @@ rule run_blast:
         8 
     shell:
         'mkdir -p "%s";' %BLAST_OUT +
-        join(BLAST_DIR, config['blast_cmd']) + ' -db {params.dbname} -outfmt 6'
-        ' -num_threads ' + '{threads} {params.blast_params} < '
-        '{input.markers_file} | ' + PYEXEC + 'blast2psl' + PYSUF + 
-        ' > {output} 2> {log}'
+        join(BLAST_DIR, config['blast_cmd']) + ' -db {params.dbname} '
+        '-num_threads {threads} {params.blast_params} < {input.markers_file} |'
+        + PYEXEC + 'blast2psl' + PYSUF + ' > {output} 2> {log}'
 
 rule concat_psl:
     input:
