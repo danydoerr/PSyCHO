@@ -86,7 +86,7 @@ rule run_blast:
     input:
         BLAST_OUT + '/{genome}.blastn'
     output:
-        BLAST_OUT + '/{genome}.psl'
+        temp(BLAST_OUT + '/{genome}.psl')
     shell:
         PYEXEC + 'blast2psl' + PYSUF + ' -i {input} > {output}'
 
