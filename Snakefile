@@ -71,7 +71,7 @@ rule run_blast:
         dbname = '%s/%s' %(config['blast_out'], config['blast_db_name']),
         blast_params = config['blast_params']
     output:
-        temp(BLAST_OUT + '/{genome}.psl')
+        temp(BLAST_OUT + '/{genome}.blastn')
     log:
         BLAST_OUT + '/blastn.log'
     threads: 
@@ -79,8 +79,16 @@ rule run_blast:
     shell:
         'mkdir -p "%s";' %BLAST_OUT +
         join(BLAST_DIR, config['blast_cmd']) + ' -db {params.dbname} '
-        '-num_threads {threads} {params.blast_params} < {input.markers_file} |'
-        + PYEXEC + 'blast2psl' + PYSUF + ' > {output} 2> {log}'
+        '-num_threads {threads} {params.blast_params} < {input.markers_file} >'
+        '{output} 2> {log}'
+
+rule run_blast:
+    input:
+        BLAST_OUT + '/{genome}.blastn'
+    output:
+        BLAST_OUT + '/{genome}.psl'
+    shell:
+        PYEXEC + 'blast2psl' + PYSUF + ' -i {input} > {output}'
 
 rule concat_psl:
     input:
