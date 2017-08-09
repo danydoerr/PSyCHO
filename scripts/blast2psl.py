@@ -170,15 +170,15 @@ def parseData(data, out):
                 if m:
                     s1, seq_type, s2, start, s3, aln, end = m.groups()
                     if seq_type != 'Query':
-                        raise SyntaxError('expected alignment sequence of' + \
-                                'Query, but found %s' %seq_type)
+                        raise SyntaxError('expected alignment sequence of ' + \
+                                'query, but found %s' %seq_type)
 
                     stack.append((ParseType.ALN_QUERY, aln, int(start),
                         int(end), len(s1) + len(seq_type) + len(s2) + len(start)
                         + len(s3)))
                 elif aln_len == 0 or not line or line.strip():
                     if aln_len > 0:
-                        raise SyntaxError(('expected %s more character of' + \
+                        raise SyntaxError(('expected %s more characters of ' + \
                                 'alignment') %aln_len)
                     # remove ALN from stack
                     _, frags, _, = stack.pop()
