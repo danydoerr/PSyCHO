@@ -82,7 +82,7 @@ rule run_blast:
         '-num_threads {threads} {params.blast_params} < {input.markers_file} >'
         '{output} 2> {log}'
 
-rule run_blast:
+rule blastn_to_psl:
     input:
         BLAST_OUT + '/{genome}.blastn'
     output:
