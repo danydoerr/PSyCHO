@@ -23,8 +23,7 @@ import os
 #
 
 from pairwise_similarities import readDists, reverseDistMap, readGenomeMap, \
-        DIRECTION_CRICK_STRAND, DIRECTION_WATSON_STRAND, \
-        TELOMERE_END, TELOMERE_START, GENOME_MAP_FILE, GM_ACTV_GNS_KEY
+        GENOME_MAP_FILE, GM_ACTV_GNS_KEY
 from dll import doubly_linked_list as DLL, node as dnode
 
 #setrecursionlimit(100000)
