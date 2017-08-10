@@ -22,7 +22,7 @@ ATOMS_OUT = join(config['atoms_out'], '%s_%s' %(config['blast_cmd'],
 CORES = snakemake.get_argument_parser().parse_args().cores or 1 
 BLAST_THREADS = int(max(1, CORES/len(GENOMES)))
 
-MARKER_OUT = join(config['marker_out'], '%s_ag%s_al%s_m%s' %(
+MARKER_OUT = join(config['marker_dir'], '%s_ag%s_al%s_m%s' %(
         basename(ATOMS_OUT), config['sgmtn_alignment_maxgap'],
         config['sgmtn_alignment_minlen'], config['marker_min_length']))
 MARKERS_FILES = [join(MARKER_OUT, basename(x)) for x in GENOMES]
