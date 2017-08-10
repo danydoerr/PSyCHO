@@ -270,7 +270,7 @@ def parseData(data, out):
                         j += 1
 
 
-                    if pfrags and ((pfrags[-1].query_strand == 1 and \
+                    if pfrags and frags and ((pfrags[-1].query_strand == 1 and \
                             pfrags[-1].query_end+1 == frags[0].query_start) or \
                             (pfrags[-1].query_strand == -1 and  \
                             pfrags[-1].query_start-1 == frags[0].query_end)) \
