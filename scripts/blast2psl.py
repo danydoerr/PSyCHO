@@ -16,8 +16,8 @@ PAT_HSP_INFO   = re.compile('(\w+)\s*=\s*([^,=]+)\s*(?=,|$)')
 PAT_HSP_SCORE  = re.compile('^([0-9.e+-]+) bits \(([0-9.e+-]+)\)\s*$')
 PAT_HSP_COUNTS = re.compile('^\s*(\d+)/(\d+) \([0-9.]+%\)\s*$')
 PAT_HSP_STRAND = re.compile('^\s*(Plus|Minus)\s*/\s*(Plus|Minus)\s*$')
-PAT_ALN_START  = re.compile('^\s*Query\s+\d')
-PAT_ALN_SEQ    = re.compile('^(\s*)(Query|Sbjct)(\s+)(\d+)(\s+)([A-Za-z-]+)\s+(\d+)\s*$')
+PAT_ALN_START  = re.compile('^\s*Query\s+(\d|-)')
+PAT_ALN_SEQ    = re.compile('^(\s*)(Query|Sbjct)(\s+)(\d*)(\s+)([A-Za-z-]+)\s+(\d*)\s*$')
 PAT_ALN_MATCH  = re.compile('^[ |]+$')
 
 
@@ -173,13 +173,14 @@ def parseData(data, out):
                         raise SyntaxError('expected alignment sequence of ' + \
                                 'query, but found %s' %seq_type)
 
-                    stack.append((ParseType.ALN_QUERY, aln, int(start),
-                        int(end), len(s1) + len(seq_type) + len(s2) + len(start)
-                        + len(s3)))
+                    stack.append((ParseType.ALN_QUERY, aln, not start and -1 or
+                        int(start), not end and -1 or int(end), len(s1) +
+                        len(seq_type) + len(s2) + len(start) + len(s3)))
                 elif aln_len == 0 or not line or line.strip():
                     if aln_len > 0:
                         raise SyntaxError(('expected %s more characters of ' + \
-                                'alignment') %aln_len)
+                                'alignment, but got this: \n %s') %(aln_len,
+                                    line))
                     # remove ALN from stack
                     _, frags, _, = stack.pop()
                     # remove HSP from stack
@@ -205,7 +206,9 @@ def parseData(data, out):
                 m = PAT_ALN_SEQ.match(line)
                 if m:
                     _, seq_type, _, sstart, _, sbjct, send = m.groups()
-                    sstart, send = int(sstart), int(send)
+                    sstart = not sstart and -1 or int(sstart)
+                    send = not send and -1 or int(send)
+
                     if seq_type != 'Sbjct':
                         raise SyntaxError('expected alignment sequence of' + \
                                 'Sbjct, but found %s' %seq_type)
