@@ -1,33 +1,32 @@
+atoms_out: atoms
+
 bin: scripts/
+
 blast_cmd: blastn
 blast_db_endings: [nhd, nhi, nhr, nin, nog, nsd, nsi, nsq]
 blast_db_name: database
 blast_db_type: nucl
-blast_dir: /path/to/blast_dir
-blast_out: blast
-blast_params: -task=blastn -evalue=0.00001
+blast_dir: /path/to/blast/bin 
+blast_params: -task=blastn -evalue=0.00001 -min_raw_gapped_score 100 
 
-fasta_cmd: /path/to/fasta_cmd 
-fasta_db_name: database.fna
-fasta_db_type: nucl
-fasta_out: fasta
-fasta_params: -E0.00001
-
-circos_cmd: /path/to/circos
+circos_cmd: /path/to/circos/bin/
 genome_data_dir: genomes
 marker_min_length: 300
-markers_dir: markers
-mauve_cmd: /path/to/progressiveMauve
-mauve_out_dir: mauve
-mauve_seed_weight: 21
+marker_dir: markers
 mkblastdb_cmd: makeblastdb
+
 psycho_delta: 200
 psycho_cov: 3
 psycho_out: hierarchies
 psycho_ref: 0
-pw_out: homologies
-pw_stringency: 0.1
+
 pwsynteny_plot_params: -m 10 -c -s # add -s to plot sublevels
 pysuf: .py
 python2_bin: ''
+
+segmentation_cmd: /path/to/atomizer
+sgmtn_alignment_ident: 70
+sgmtn_alignment_maxgap: 13
+sgmtn_alignment_minlen: 13
+
 tmp_dir: ~/.tmp
