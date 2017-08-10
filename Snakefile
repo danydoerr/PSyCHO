@@ -8,28 +8,35 @@ PYEXEC = ' '.join(filter(None, [config['python2_bin'], config['bin']]))
 PYSUF = config['pysuf']
 
 GENOMES_DIR = config['genome_data_dir']
-GENOMES = sorted(glob('%s/*.fna' %GENOMES_DIR))
+GENOMES = sorted(filter(lambda x: basename(x).find('_') < 0, 
+        glob('%s/*.fna' %GENOMES_DIR)))
 
 BLAST_DIR = config['blast_dir']
-BLAST_PARSTR = config['blast_params'].replace('-', '').replace(' ', '_')
-BLAST_OUT = '%s/%s_%s' %(config['blast_out'], config['blast_cmd'], BLAST_PARSTR)
+
+BLAST_PARAMS = ' '.join((config['blast_params'], 
+        '-perc_identity %s' %config['sgmtn_alignment_ident']))
+
+BLAST_PARSTR = BLAST_PARAMS.replace('-', '').replace(' ', '_')
+ATOMS_OUT = join(config['atoms_out'], '%s_%s' %(config['blast_cmd'],
+        BLAST_PARSTR))
 CORES = snakemake.get_argument_parser().parse_args().cores or 1 
 BLAST_THREADS = int(max(1, CORES/len(GENOMES)))
 
-SEGMENTATION_OUT = '%s/%s_ai%s_ag%s_al%s_m%s' %(config['segmentation_out'],
-        basename(BLAST_OUT), config['sgmtn_alignment_ident'],
-        config['sgmtn_alignment_maxgap'], config['sgmtn_alignment_minlen'],
-        config['marker_min_length'])
-#MARKERS_DIR = '%s/%s_marker_l%s' %(config['markers_dir'], basename(MAUVE_OUT),
-#        config['marker_min_length'])
-MARKERS_FILES = ['%s/%s' %(SEGMENTATION_OUT, basename(x)) for x in GENOMES]
+MARKER_OUT = join(config['marker_out'], '%s_ag%s_al%s_m%s' %(
+        basename(ATOMS_OUT), config['sgmtn_alignment_maxgap'],
+        config['sgmtn_alignment_minlen'], config['marker_min_length']))
+MARKERS_FILES = [join(MARKER_OUT, basename(x)) for x in GENOMES]
+PW_SIMS = [join(MARKER_OUT, '%s_%s.sim' %(x,y)) for x,y in
+        combinations(map(lambda z: basename(z).rsplit('.', 1)[0], GENOMES), 2)]
+GENOME_MAP_FILE = join(MARKER_OUT, 'genome_map.cfg')
 
 REF = basename(GENOMES[int(config['psycho_ref'])].rsplit('.', 1)[0])
-HIERARCHY_OUT = '%s/%s_psycho_d%s_ref_%s' %(config['psycho_out'],
-        basename(SEGMENTATION_OUT), config['psycho_delta'], REF)
+HIERARCHY_OUT = join(config['psycho_out'], '%s_psycho_d%s_ref_%s' %(
+        basename(MARKER_OUT), config['psycho_delta'], REF))
 
 CIRCOS_CMD = config['circos_cmd']
-CIRCOS_PLOT_SUFFIX = config['pwsynteny_plot_params'].find('-s') < 0 and 'main' or 'sub'
+CIRCOS_PLOT_SUFFIX = config['pwsynteny_plot_params'].find('-s') < 0 and 'main' \
+        or 'sub'
 
 #
 # MAIN RULE
@@ -50,145 +57,146 @@ rule create_blast_db:
         dbtype = config['blast_db_type'],
         title = 'BLAST database of marker sequences ' + 
         ' '.join(GENOMES),
-        dbname = '%s/%s' %(config['blast_out'], config['blast_db_name'])
+        dbname = '%s/%s' %(config['atoms_out'], config['blast_db_name'])
     output:
-        expand('%s/%s.{dbfile}' %(config['blast_out'], config['blast_db_name']), 
-        dbfile=config['blast_db_endings'])
+        expand('%s/%s.{dbfile}' %(config['atoms_out'], config['blast_db_name']), 
+                dbfile=config['blast_db_endings'])
     log:
-        '%s/%s.log' %(config['blast_out'], config['blast_db_name'])
+        '%s/%s.log' %(config['atoms_out'], config['blast_db_name'])
     shell:
-        'mkdir -p "%s";' %config['blast_out'] + 
-        join(BLAST_DIR, config['mkblastdb_cmd']) + ' -in \"{input}\" -hash_index '
-        '-out {params.dbname} -dbtype {params.dbtype} -title '
+        'mkdir -p "%s";' %config['atoms_out'] + 
+        join(BLAST_DIR, config['mkblastdb_cmd']) + ' -in \"{input}\" '
+        '-hash_index -out {params.dbname} -dbtype {params.dbtype} -title '
         '\"{params.title}\" -logfile {log}'
+
 
 rule run_blast:
     input:
         markers_file = GENOMES_DIR + '/{genome}.fna',
-        blast_db = expand('%s/%s.{dbfile}' %(config['blast_out'],
-        config['blast_db_name']), dbfile=config['blast_db_endings'])
+        blast_db = expand(join(config['atoms_out'], '%s.{dbfile}' %(
+                config['blast_db_name'])), dbfile=config['blast_db_endings'])
     params:
-        dbname = '%s/%s' %(config['blast_out'], config['blast_db_name']),
-        blast_params = config['blast_params']
+        dbname = join(config['atoms_out'], config['blast_db_name']),
+        blast_params = BLAST_PARAMS
     output:
-        temp(BLAST_OUT + '/{genome}.blastn')
+        temp(ATOMS_OUT + '_{genome,[^_]+}.psl')
     log:
-        BLAST_OUT + '/blastn.log'
+        join(config['atoms_out'], 'blastn.log')
     threads: 
         BLAST_THREADS
     shell:
-        'mkdir -p "%s";' %BLAST_OUT +
+        'mkdir -p "%s";' %config['atoms_out']+
         join(BLAST_DIR, config['blast_cmd']) + ' -db {params.dbname} '
-        '-num_threads {threads} {params.blast_params} < {input.markers_file} >'
-        '{output} 2> {log}'
+        '-num_threads {threads} {params.blast_params} < {input.markers_file} |' +
+        PYEXEC + 'blast2psl' + PYSUF +' > {output} 2> {log}'
 
-rule blastn_to_psl:
-    input:
-        BLAST_OUT + '/{genome}.blastn'
-    output:
-        temp(BLAST_OUT + '/{genome}.psl')
-    shell:
-        PYEXEC + 'blast2psl' + PYSUF + ' -i {input} > {output}'
 
 rule concat_psl:
     input:
-        expand(BLAST_OUT + '/{genome}.psl', genome=map(lambda x:
+        expand(ATOMS_OUT + '_{genome}.psl', genome=map(lambda x:
                 basename(x).rsplit('.', 1)[0], GENOMES))
     output:
-        '%s/all.psl' %BLAST_OUT 
+        ATOMS_OUT + '.psl' 
     shell:
         'cat {input} > {output};' 
 
+
 rule atomizer:
     input:
-        '%s/all.psl' %BLAST_OUT,
+        ATOMS_OUT + '.psl'
     params:
-        out_dir = SEGMENTATION_OUT,
+        out_dir = MARKER_OUT,
         min_len = config['marker_min_length'],
         al_ident = config['sgmtn_alignment_ident'],
         al_min_len = config['sgmtn_alignment_minlen'],
         al_max_gap = config['sgmtn_alignment_maxgap']
     output:
-        '%s/all.atoms' %SEGMENTATION_OUT
+        ATOMS_OUT + '.atoms'
     shell:
         config['segmentation_cmd'] + ' {input} --minLength {params.min_len} '
         '--minIdent {params.al_min_len} --minIdent {params.al_ident} --maxGap '
         '{params.al_max_gap} > {output}'
 
+
 rule atoms_to_markers:
     input:
-        atoms_file = '%s/all.atoms' %SEGMENTATION_OUT,
+        atoms_file = ATOMS_OUT + '.atoms',
         fasta_files = GENOMES
     params:
-        out_dir = SEGMENTATION_OUT
+        out_dir = MARKER_OUT
     output:
-        MARKERS_FILES
+        MARKERS_FILES,
+        PW_SIMS,
+        GENOME_MAP_FILE
     shell:
         PYEXEC + 'atoms_to_dna' + PYSUF + ' -o {params.out_dir} '
         '{input.atoms_file} {input.fasta_files}'
 
-#rule run_psycho:
-#    input:
-#        PW_SIMS
-#    params:
-#        delta = config['psycho_delta'],
-#        coverage = config['psycho_cov'],
-#        reference = REF
-#    threads:
-#        64
-#    output:
-#        '%s/hierarchy_d%s.json' %(HIERARCHY_OUT, config['psycho_delta'])
-#    log:
-#        'psycho_d%s.log' %config['psycho_delta']
-#    shell:
-#        PYEXEC + 'psycho' + PYSUF + ' -d {params.delta} -r '
-#        '{params.reference} {input} -c {params.coverage} -o {output}'
-#
-#rule create_karyotypes:
-#    input:
-#        genome = '%s/{genome}.fna' %GENOMES_DIR,
-#        markers = '%s/{genome}.gos' %SEGMENTATION_OUT
-#    output:
-#        '%s/karyotype.{genome}.txt' %HIERARCHY_OUT
-#    log:
-#        '%s/karyotype.{genome}.log' %HIERARCHY_OUT
-#    shell:
-#        PYEXEC + 'syn2circos.karyotype' + PYSUF + ' {input.genome} '
-#        '{input.markers} > {output} 2> {log}'
-#
-#rule generate_circos_files:
-#    input:
-#        json = '%s/hierarchy_d%s.json' %(HIERARCHY_OUT,
-#        config['psycho_delta']),
-#        markers = '%s/{genome}.gos' %SEGMENTATION_OUT
-#    params:
-#        karyotype_dir = HIERARCHY_OUT,
-#        plot_params = config['pwsynteny_plot_params'],
-#        out_dir = HIERARCHY_OUT
-#    output:
-#        '%s/%s_{genome}_%s.circos.conf' %(HIERARCHY_OUT, REF,
-#        CIRCOS_PLOT_SUFFIX),
-#        '%s/%s_{genome}_%s.links' %(HIERARCHY_OUT, REF, CIRCOS_PLOT_SUFFIX),
-#    run:
-#        shell(PYEXEC + 'inctree2pwsynteny' + PYSUF + ' -k {params.karyotype_dir} ' 
-#        '-o {params.out_dir} {params.plot_params} {input.json} ' + 
-#        basename(input.markers).rsplit('.')[0])
-#
-#rule run_circos:
-#    input:
-#        circos_conf = '%s/%s_{genome}_%s.circos.conf' %(HIERARCHY_OUT, REF,
-#        CIRCOS_PLOT_SUFFIX),
-#        links = '%s/%s_{genome}_%s.links' %(HIERARCHY_OUT, REF,
-#        CIRCOS_PLOT_SUFFIX),
-#        ref_karyotype = '%s/karyotype.%s.txt' %(HIERARCHY_OUT, REF),
-#        target_karyotype = '%s/karyotype.{genome}.txt' %HIERARCHY_OUT 
-#    params:
-#        out_dir = HIERARCHY_OUT
-#    output:
-#        '%s/%s_{genome}_%s.png' %(HIERARCHY_OUT,  REF, CIRCOS_PLOT_SUFFIX)
-#    log:
-#        '%s/%s_{genome}_%s.log' %(HIERARCHY_OUT,  REF, CIRCOS_PLOT_SUFFIX)
-#    shell:
-#        CIRCOS_CMD + ' -conf {input.circos_conf} -outputdir {params.out_dir} '
-#        '2> {log}'
+
+rule run_psycho:
+    input:
+        pw_sims = PW_SIMS,
+        genome_map = GENOME_MAP_FILE
+    params:
+        delta = config['psycho_delta'],
+        coverage = config['psycho_cov'],
+        reference = REF
+    threads:
+        64
+    output:
+        join(HIERARCHY_OUT, 'hierarchy_d%s.json' %config['psycho_delta'])
+    log:
+        'psycho_d%s.log' %config['psycho_delta']
+    shell:
+        PYEXEC + 'psycho' + PYSUF + ' -d {params.delta} -r '
+        '{params.reference} {input} -c {params.coverage} -o {output.pw_sims}'
+
+
+rule create_karyotypes:
+    input:
+        genome = join(GENOMES_DIR, '{genome}.fna'),
+        markers = join(MARKER_OUT, '{genome}.fna')
+    output:
+        join(HIERARCHY_OUT, 'karyotype.{genome}.txt')
+    log:
+        join(HIERARCHY_OUT, 'karyotype.{genome}.log')
+    shell:
+        PYEXEC + 'syn2circos.karyotype' + PYSUF + ' {input.genome} '
+        '{input.markers} > {output} 2> {log}'
+
+
+rule generate_circos_files:
+    input:
+        json = join(HIERARCHY_OUT, 'hierarchy_d%s.json' %config['psycho_delta']),
+        markers = join(MARKER_OUT, '{genome}.fna')
+    params:
+        karyotype_dir = HIERARCHY_OUT,
+        plot_params = config['pwsynteny_plot_params'],
+    output:
+        join(HIERARCHY_OUT, '%s_{genome}_%s.circos.conf' %(REF,
+                CIRCOS_PLOT_SUFFIX)),
+        join(HIERARCHY_OUT, '%s_{genome}_%s.links' %(REF, CIRCOS_PLOT_SUFFIX)),
+    shell:
+        PYEXEC + 'inctree2pwsynteny' + PYSUF + ' -k {params.karyotype_dir} ' 
+        '-o {params.out_dir} {params.plot_params} {input.json} '
+        '{wildcards.markers}'
+
+
+rule run_circos:
+    input:
+        circos_conf = join(HIERARCHY_OUT, '%s_{genome}_%s.circos.conf' %(REF,
+                CIRCOS_PLOT_SUFFIX)),
+        links = join(HIERARCHY_OUT, '%s_{genome}_%s.links' %(REF,
+                CIRCOS_PLOT_SUFFIX)),
+        ref_karyotype = join(HIERARCHY_OUT, 'karyotype.%s.txt' %REF),
+        target_karyotype = join(HIERARCHY_OUT, 'karyotype.{genome}.txt')
+    params:
+        out_dir = HIERARCHY_OUT
+    output:
+        join(HIERARCHY_OUT, '%s_{genome}_%s.png' %(REF, CIRCOS_PLOT_SUFFIX))
+    log:
+        join(HIERARCHY_OUT, '%s_{genome}_%s.log' %(REF, CIRCOS_PLOT_SUFFIX))
+    shell:
+        CIRCOS_CMD + ' -conf {input.circos_conf} -outputdir {params.out_dir} '
+        '2> {log}'
         
