@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
-from sys import argv,stdout,stderr,exit
-from os.path import basename, join, abspath
+from itertools import chain, izip, combinations, repeat
+from sys import argv, stdout, stderr, exit
+from os.path import basename, join, abspath, relpath
 from Bio import SeqIO
 from Bio.Seq import Seq, Alphabet
 from string import maketrans
@@ -35,19 +36,18 @@ def paritionRecord(record, segments, fams):
         rec.seq = Seq(str(rec.seq).translate(TRANS_TABLE),
                 Alphabet.generic_dna)
         if rec.seq.count('N') + rec.seq.count('n') != len(rec):
-            res.append((star, rec)) 
+            res.append((start, rec)) 
             if not fams.has_key(f):
                 fams[f] = dict()
             if not fams[f].has_key(record.id):
                 fams[f][record.id] = list()
             fams[f][record.id].append(rec.id)
         c += 1
-    return res
+    return map(lambda x: x[1], sorted(res))
 
 def writePairwiseSimilarities(fams, chr2genome, markers, fastaFiles, outDir):
-    import pdb; pdb.set_trace() 
-    gene2fam = dict(chain(*(tuple((g, f) for g in v.values()) for f, v in
-        fams.items())))
+    gene2fam = dict(chain(*(chain(*(izip(g, repeat(f, len(g))) for g in
+        v.values())) for f, v in fams.items())))
     gMap = dict()
 
     chrs = dict()
@@ -65,29 +65,41 @@ def writePairwiseSimilarities(fams, chr2genome, markers, fastaFiles, outDir):
         gMap[Gx] = dict()
         gMap[Gx][GM_FILE_KEY] = relpath(f, outDir or '.')
         gMap[Gx][GM_CHR_KEY] = chrs[Gx]
-        active_markers = list()
+        gMap[Gx][GM_ACTV_GNS_KEY] = list()
         genomes.append(Gx)
 
         c = 1
         for chrx in chrs[Gx]:
-            genes = map(lambda x: x[1], sorted(markers[chrx]))
-            genes2pos.update(izip(map(lambda x: x.id, genes), xrange(c,
-                c+len(genes))))
-            c += len(genes)
-            active_markers.extend(genes)
-        gMap[Gx][GM_ACTV_GNS_KEY] = active_markers
+            genes2pos.update(izip(map(lambda x: x.id, markers[chrx]), xrange(c,
+                c+len(markers[chrx]))))
+            c += len(markers[chrx])
+            gMap[Gx][GM_ACTV_GNS_KEY].extend(map(lambda x: x.id, markers[chrx]))
     
     for Gx, Gy in combinations(genomes, 2):
-        out = open(join(outDir, '%s_%s.sim'))
+        out = open(join(outDir, '%s_%s.sim' %(Gx, Gy)), 'w')
         for chrx in chrs[Gx]:
             for gx in markers[chrx]:
-                f = gene2fam[gx]
+                f = gene2fam[gx.id]
                 for chry in chrs[Gy]:
                     if fams[f].has_key(chry):
                         for gy in sorted(map(genes2pos.get, fams[f][chry])):
-                            print >> out, '\t'.join((chrx, str(gx), chry,
-                                str(gy), '*', '1'))
-    writeGenomeMap(gMap, genomes, open(join(outDir, GENOME_MAP_FILE)))
+                            print >> out, '\t'.join((chrx,
+                                str(genes2pos[gx.id]), chry, str(gy), '*',
+                                '1'))
+
+    for Gx in genomes:
+        out = open(join(outDir, '%s_%s.sim' %(Gx, Gx)), 'w')
+        for chrx in chrs[Gx]:
+            for gx in markers[chrx]:
+                f = gene2fam[gx.id]
+                for chry in set(chrs[Gx]).intersection(fams[f]):
+                    for gy in sorted(map(genes2pos.get, fams[f][chrx])):
+                        if genes2pos[gx.id] != gy:
+                            print >> out, '\t'.join((chrx,
+                                str(genes2pos[gx.id]), chry, str(gy), '*',
+                                '1'))
+
+    writeGenomeMap(gMap, genomes, open(join(outDir, GENOME_MAP_FILE), 'w'))
 
 
 def writeMarkers(fastaFiles, outDir, segments):
