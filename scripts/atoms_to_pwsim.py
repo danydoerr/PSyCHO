@@ -70,10 +70,12 @@ def writePairwiseSimilarities(fams, chr2genome, markers, fastaFiles, outDir):
 
         c = 1
         for chrx in chrs[Gx]:
-            genes2pos.update(izip(map(lambda x: x.id, markers[chrx]), xrange(c,
-                c+len(markers[chrx]))))
-            c += len(markers[chrx])
-            gMap[Gx][GM_ACTV_GNS_KEY].extend(map(lambda x: x.id, markers[chrx]))
+            for g in markers[chrx]:
+                f = gene2fam[g.id]
+                if len(set(map(chr2genome.get, fams[f].keys()))) > 1:
+                    genes2pos[g.id] = c
+                    gMap[Gx][GM_ACTV_GNS_KEY].append(g.id)
+                    c += 1
     
     for Gx, Gy in combinations(genomes, 2):
         out = open(join(outDir, '%s_%s.sim' %(Gx, Gy)), 'w')
