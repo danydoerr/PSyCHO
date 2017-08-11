@@ -27,7 +27,8 @@ MARKER_OUT = join(config['marker_dir'], '%s_ag%s_al%s_m%s' %(
         config['sgmtn_alignment_minlen'], config['marker_min_length']))
 MARKERS_FILES = [join(MARKER_OUT, basename(x)) for x in GENOMES]
 PW_SIMS = [join(MARKER_OUT, '%s_%s.sim' %(x,y)) for x,y in
-        combinations(map(lambda z: basename(z).rsplit('.', 1)[0], GENOMES), 2)]
+        chain(combinations(map(lambda z: basename(z).rsplit('.', 1)[0], GENOMES), 2), 
+        zip(*repeat([basename(z).rsplit('.', 1)[0] for z in GENOMES], 2)))]
 GENOME_MAP_FILE = join(MARKER_OUT, 'genome_map.cfg')
 
 REF = basename(GENOMES[int(config['psycho_ref'])].rsplit('.', 1)[0])
@@ -44,11 +45,10 @@ CIRCOS_PLOT_SUFFIX = config['pwsynteny_plot_params'].find('-s') < 0 and 'main' \
 
 rule all:
     input:
-        MARKERS_FILES
-#        expand('%s/%s_{target}_%s.png' %(HIERARCHY_OUT,  REF,
-#                CIRCOS_PLOT_SUFFIX), target=[basename(
-#                GENOMES[x][:GENOMES[x].rfind('.')]) for x in
-#                range(len(GENOMES)) if x != config['psycho_ref']])
+        expand(join(HIERARCHY_OUT, '%s_{target}_%s.png' %(REF,
+                CIRCOS_PLOT_SUFFIX)), target=[basename(
+                GENOMES[x][:GENOMES[x].rfind('.')]) for x in
+                range(len(GENOMES)) if x != config['psycho_ref']])
 
 rule create_blast_db:
     input:
@@ -129,7 +129,7 @@ rule atoms_to_markers:
         PW_SIMS,
         GENOME_MAP_FILE
     shell:
-        PYEXEC + 'atoms_to_dna' + PYSUF + ' -o {params.out_dir} '
+        PYEXEC + 'atoms_to_pwsim' + PYSUF + ' -o {params.out_dir} '
         '{input.atoms_file} {input.fasta_files}'
 
 
@@ -149,7 +149,7 @@ rule run_psycho:
         'psycho_d%s.log' %config['psycho_delta']
     shell:
         PYEXEC + 'psycho' + PYSUF + ' -d {params.delta} -r '
-        '{params.reference} {input} -c {params.coverage} -o {output.pw_sims}'
+        '{params.reference} -c {params.coverage} -o {output} {input.pw_sims}'
 
 
 rule create_karyotypes:
@@ -172,6 +172,7 @@ rule generate_circos_files:
     params:
         karyotype_dir = HIERARCHY_OUT,
         plot_params = config['pwsynteny_plot_params'],
+        out_dir = HIERARCHY_OUT
     output:
         join(HIERARCHY_OUT, '%s_{genome}_%s.circos.conf' %(REF,
                 CIRCOS_PLOT_SUFFIX)),
@@ -179,7 +180,7 @@ rule generate_circos_files:
     shell:
         PYEXEC + 'inctree2pwsynteny' + PYSUF + ' -k {params.karyotype_dir} ' 
         '-o {params.out_dir} {params.plot_params} {input.json} '
-        '{wildcards.markers}'
+        '{wildcards.genome}'
 
 
 rule run_circos:
