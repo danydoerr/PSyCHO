@@ -217,10 +217,9 @@ rule generate_circos_files:
         '%s/%s_{genome}_%s.circos.conf' %(HIERARCHY_OUT, REF,
         CIRCOS_PLOT_SUFFIX),
         '%s/%s_{genome}_%s.links' %(HIERARCHY_OUT, REF, CIRCOS_PLOT_SUFFIX),
-    run:
-        shell(PYEXEC + 'inctree2pwsynteny' + PYSUF + ' -k {params.karyotype_dir} ' 
-        '-o {params.out_dir} {params.plot_params} {input.json} ' + 
-        basename(input.markers).rsplit('.')[0])
+    shell:
+        PYEXEC + 'inctree2pwsynteny' + PYSUF + ' -k {params.karyotype_dir} ' 
+        '-o {params.out_dir} {params.plot_params} {input.json} {wildcards.genome}'
 
 rule run_circos:
     input:
