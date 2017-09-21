@@ -10,20 +10,30 @@ from string import maketrans
 import csv
 
 from pairwise_similarities import GM_FILE_KEY, GM_CHR_KEY, GM_ACTV_GNS_KEY, \
-        GENOME_MAP_FILE, writeGenomeMap
+        GENOME_MAP_FILE, writeGenomeMap, PAT_CHR
 
 
 TRANS_TABLE=maketrans('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',\
         'ANCNNNGNNNNNNNNNNNNTNNNNNMancnnngnnnnnnnnnnnntnnnnnn')
 DEFAULT_OUT_DIR = '.'
 
+
+def gene2chr(g):
+    return PAT_CHR.match(g).group(1)
+
+
 def readSegments(data):
     res = dict()
+    isHeader = True
     for line in csv.reader(data, delimiter='\t'):
+        if isHeader:
+            isHeader = False
+            continue
         if not res.has_key(line[0]):
             res[line[0]] = list()
         res[line[0]].append((int(line[4]), int(line[5]), line[2]))
     return res
+
 
 def paritionRecord(record, segments, fams):
     res = list()
@@ -44,6 +54,7 @@ def paritionRecord(record, segments, fams):
             fams[f][record.id].append(rec.id)
         c += 1
     return map(lambda x: x[1], sorted(res))
+
 
 def writePairwiseSimilarities(fams, chr2genome, markers, fastaFiles, outDir):
     gene2fam = dict(chain(*(chain(*(izip(g, repeat(f, len(g))) for g in
@@ -91,15 +102,13 @@ def writePairwiseSimilarities(fams, chr2genome, markers, fastaFiles, outDir):
 
     for Gx in genomes:
         out = open(join(outDir, '%s_%s.sim' %(Gx, Gx)), 'w')
-        for chrx in chrs[Gx]:
-            for gx in markers[chrx]:
-                f = gene2fam[gx.id]
-                for chry in set(chrs[Gx]).intersection(fams[f]):
-                    for gy in sorted(map(genes2pos.get, fams[f][chrx])):
-                        if genes2pos[gx.id] != gy:
-                            print >> out, '\t'.join((chrx,
-                                str(genes2pos[gx.id]), chry, str(gy), '*',
-                                '1'))
+        for gx in gMap[Gx][GM_ACTV_GNS_KEY]:
+            f = gene2fam[gx]
+            for chry in set(chrs[Gx]).intersection(fams[f]):
+                for gy in sorted(map(genes2pos.get, fams[f][chry])):
+                    if genes2pos[gx] != gy:
+                        print >> out, '\t'.join((gene2chr(gx),
+                            str(genes2pos[gx]), chry, str(gy), '*', '1'))
 
     writeGenomeMap(gMap, genomes, open(join(outDir, GENOME_MAP_FILE), 'w'))
 
