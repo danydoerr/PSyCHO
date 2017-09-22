@@ -125,7 +125,7 @@ def writeMarkers(fastaFiles, outDir, segments):
             if segments.has_key(record.id):
                 recs = paritionRecord(record, segments[record.id], fams)
                 if recs:
-                    markers.extend(recs)
+                    markers.extend(map(lambda x: x.id, recs))
                     SeqIO.write(recs, out, 'fasta')
                     chrs.append(record.id)
             else:
