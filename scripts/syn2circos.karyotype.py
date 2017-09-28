@@ -79,7 +79,7 @@ if __name__ == '__main__':
                 gid.lower())
 
     for sid in sorted(chr_lengths.keys()):
-        print 'chr - %s.%s %s.%s %s %s %s.%s' %(gid.lower(), sid, gid, sid, 0,
+        print 'chr - %s.%s %s %s %s %s.%s' %(gid.lower(), sid, sid.upper(), 0,
                 chr_lengths[sid], gid.lower(), sid)
     print out.getvalue()
 
