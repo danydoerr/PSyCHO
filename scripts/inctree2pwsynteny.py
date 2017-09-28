@@ -104,7 +104,7 @@ if __name__ == '__main__':
     g2pos_ref = [dict(izip(go, xrange(len(go)))) for go in markers_ref]
     g2pos_target = [dict(izip(go, xrange(len(go)))) for go in markers_target]
     recovered_markers = jsDict['recovered_markers']
-    
+
     chr1s = sorted(set('%s.%s'%(G0.lower(), PAT_CHR.match(x).group(1).lower()) \
             for x in chain(*markers_ref) if x != CONTIG_BOUNDARY_KEY))
     chr2s = sorted(set('%s.%s'%(G1.lower(), PAT_CHR.match(x).group(1).lower()) \
@@ -293,11 +293,11 @@ if __name__ == '__main__':
     print >> circos_out, 'multiplier       = 1e-6'
     print >> circos_out, 'format           = %d'
     print >> circos_out, '<tick>'
-    print >> circos_out, 'spacing        = 5u'
+    print >> circos_out, 'spacing        = 1u'
     print >> circos_out, 'size           = 10p'
     print >> circos_out, '</tick>'
     print >> circos_out, '<tick>'
-    print >> circos_out, 'spacing        = 25u'
+    print >> circos_out, 'spacing        = 5u'
     print >> circos_out, 'size           = 15p'
     print >> circos_out, 'show_label     = yes'
     print >> circos_out, 'label_size     = 20p'
