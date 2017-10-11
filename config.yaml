@@ -21,6 +21,7 @@ psycho_out: hierarchies
 psycho_ref: 0
 
 pwsynteny_plot_params: -m 10 -c -s # add -s to plot sublevels
+pwsynteny_indet_regions_window_size: 100000
 pysuf: .py
 python2_bin: ''
 
