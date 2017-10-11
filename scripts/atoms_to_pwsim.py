@@ -45,12 +45,15 @@ def readSegments(data):
             res[chrx] = list()
         res[chrx].append((start, stop, f)) 
 
+    # make sure segments are sorted
+    for v in res.values():
+        v.sort()
     return res
 
 
-def paritionRecord(record, segments, fams):
+def partitionRecord(record, segments, fams, c=1):
+    # assumes *sorted* segment list (function readSegments ensures that) 
     res = list()
-    c = 1
     for start, stop, f in segments:
         rec = record[start:stop]
         name = record.id.replace('|', '.')
@@ -58,12 +61,12 @@ def paritionRecord(record, segments, fams):
         rec.description = ''
         rec.seq = Seq(str(rec.seq).translate(TRANS_TABLE),
                 Alphabet.generic_dna)
-        res.append((start, rec)) 
+        res.append(rec) 
         if not fams.has_key(f):
             fams[f] = list()
         fams[f].append((record.id, c))
         c += 1
-    return map(lambda x: x[1], sorted(res))
+    return res
 
 
 def writePairwiseSimilarities(fams, genomes, gMap, outDir):
@@ -89,7 +92,8 @@ def writePairwiseSimilarities(fams, genomes, gMap, outDir):
             Gx = chr2genome[mx[0]]
             Gy = chr2genome[my[0]]
             if Gx == Gy:
-                pwSims[(Gx, Gy)].append(tuple(sorted((mx, my))))
+                pwSims[(Gx, Gy)].append((mx, my))
+                pwSims[(Gx, Gy)].append((my, mx))
             elif pwSims.has_key((Gx, Gy)):
                 pwSims[(Gx, Gy)].append((mx, my))
             else:
@@ -98,7 +102,7 @@ def writePairwiseSimilarities(fams, genomes, gMap, outDir):
     for (Gx, Gy), pwData in pwSims.items():
         outFile = join(outDir, '%s_%s.sim' %(Gx, Gy))
         out = open(outFile, 'w')
-        for mx, my in sorted(pwData):
+        for mx, my in sorted(pwData, key=lambda x: (x[0][1], x[1][1])):
             print >> out, '\t'.join((mx[0], str(mx[1]), my[0], str(my[1]), '*', '1'))
         out.close()
 
@@ -121,9 +125,11 @@ def writeMarkers(fastaFiles, outDir, segments):
         gnames.append(Gx)
         chrs = list()
         markers = list()
+        c = 1
         for record in SeqIO.parse(open(f), 'fasta'):
             if segments.has_key(record.id):
-                recs = paritionRecord(record, segments[record.id], fams)
+                recs = partitionRecord(record, segments[record.id], fams, c=c)
+                c += len(recs)
                 if recs:
                     markers.extend(map(lambda x: x.id, recs))
                     SeqIO.write(recs, out, 'fasta')
