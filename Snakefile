@@ -111,16 +111,36 @@ rule atomizer:
         al_min_len = config['sgmtn_alignment_minlen'],
         al_max_gap = config['sgmtn_alignment_maxgap']
     output:
-        ATOMS_OUT + '.atoms'
+        ATOMS_OUT + '_ag%s_al%s_m%s.atoms' %(config['sgmtn_alignment_maxgap'],
+            config['sgmtn_alignment_minlen'], config['marker_min_length'])
     shell:
         config['segmentation_cmd'] + ' {input} --minLength {params.min_len} '
         '--minIdent {params.al_min_len} --minIdent {params.al_ident} --maxGap '
         '{params.al_max_gap} > {output}'
 
+#rule atomizer_orig:
+#    input:
+#        ATOMS_OUT + '.psl'
+#    params:
+#        out_dir = MARKER_OUT,
+#        min_len = config['marker_min_length'],
+#        al_ident = config['sgmtn_alignment_ident'],
+#        al_min_len = config['sgmtn_alignment_minlen'],
+#        al_max_gap = config['sgmtn_alignment_maxgap']
+#    output:
+#        ATOMS_OUT + '.atoms'
+#    log:
+#        'atomizer.log'
+#    shell:
+#        config['orig_segmentation_cmd'] + '--alg IMP  --fasta {input.fasta} --psl {input.psl} --min-len {params.min_len} '
+#        '--max-dist 100 --max-gap {params.al_max_gap} --min-sim {params.al_ident} > {output} 2> {log}'
+
 
 rule atoms_to_markers:
     input:
-        atoms_file = ATOMS_OUT + '.atoms',
+        atoms_file = ATOMS_OUT + '_ag%s_al%s_m%s.atoms' %(
+            config['sgmtn_alignment_maxgap'], config['sgmtn_alignment_minlen'],
+            config['marker_min_length']),
         fasta_files = GENOMES
     params:
         out_dir = MARKER_OUT
