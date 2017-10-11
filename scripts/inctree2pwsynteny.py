@@ -59,6 +59,9 @@ if __name__ == '__main__':
                     '[default: %default]')
     parser.add_option('-o', '--output_dir', dest='outDir', type=str,
             default='.', help='Output directory [default=%default]')
+    parser.add_option('-i', '--indet_seq_histogram', dest='indetHist', type=str,
+            help='File containing histograms to track indeterminate ' + \
+                    'regions of the genome sequences [default=%default]')
 
     (options, args) = parser.parse_args()
 
@@ -250,13 +253,13 @@ if __name__ == '__main__':
 
     print >> circos_out, '</colors>'
     print >> circos_out, '<links>\n<link>'
-    print >> circos_out, 'file          = %s' %link_out.name
-    print >> circos_out, 'radius        = 0.99r'
-    print >> circos_out, 'bezier_radius = 0r'
-    print >> circos_out, 'ribbon = yes'
-    print >> circos_out, 'flat   = yes'
+    print >> circos_out, 'file             = %s' %link_out.name
+    print >> circos_out, 'radius           = 0.98r'
+    print >> circos_out, 'bezier_radius    = 0r'
+    print >> circos_out, 'ribbon           = yes'
+    print >> circos_out, 'flat             = yes'
     print >> circos_out, '<rules>\n<rule>'
-    print >> circos_out, 'condition     = 1'
+    print >> circos_out, 'condition        = 1'
     if options.colorLinks: 
         print >> circos_out, 'color         = eval(var(chr1) . \'.\' .' + \
                 'var(start1) . \'.\' . var(end1) . \'.\' . var(start2)' + \
@@ -264,47 +267,70 @@ if __name__ == '__main__':
     else:
         print >> circos_out, 'color         = eval(var(chr%s) . \'.l_a\' . var(level))' %(c_min ==
                 chr1s and 1 or 2)
-    print >> circos_out, 'flow          = continue'
+    print >> circos_out, 'flow             = continue'
     print >> circos_out, '</rule>\n</rules>'
     print >> circos_out, '</link>\n</links>'
     print >> circos_out, '<ideogram>'
     print >> circos_out, '<spacing>'
-    print >> circos_out, 'default = 0.005r'
+    print >> circos_out, 'default          = 0.005r'
     print >> circos_out, '</spacing>'
-    print >> circos_out, 'radius           = 0.92r'
+    print >> circos_out, 'radius           = 0.85r'
     print >> circos_out, 'thickness        = 100p'
     print >> circos_out, 'stroke_thickness = 0'
-    print >> circos_out, 'show_bands            = yes'
-    print >> circos_out, 'fill_bands            = yes'
+    print >> circos_out, 'show_bands       = yes'
+    print >> circos_out, 'fill_bands       = yes'
     print >> circos_out, 'band_stroke_thickness = 0'
-    print >> circos_out, 'band_transparency     = 1'
+    print >> circos_out, 'band_transparency= 1'
     print >> circos_out, 'show_label       = yes'
     print >> circos_out, 'label_font       = default'
-    print >> circos_out, 'label_radius     = 1.045r '
+    print >> circos_out, 'label_radius     = 1.0r '
     print >> circos_out, 'label_size       = 60'
     print >> circos_out, 'label_parallel   = yes'
     print >> circos_out, '</ideogram>'
-    print >> circos_out, 'show_ticks          = yes'
-    print >> circos_out, 'show_tick_labels    = yes'
+    print >> circos_out, 'show_ticks       = yes'
+    print >> circos_out, 'show_tick_labels = yes'
     print >> circos_out, '<ticks>'
-    print >> circos_out, 'radius           = 1r'
+    print >> circos_out, 'radius           = 0.99r'
     print >> circos_out, 'color            = black'
     print >> circos_out, 'thickness        = 2p'
     print >> circos_out, 'multiplier       = 1e-6'
     print >> circos_out, 'format           = %d'
     print >> circos_out, '<tick>'
-    print >> circos_out, 'spacing        = 1u'
-    print >> circos_out, 'size           = 10p'
+    print >> circos_out, 'spacing          = 1u'
+    print >> circos_out, 'size             = 10p'
     print >> circos_out, '</tick>'
     print >> circos_out, '<tick>'
-    print >> circos_out, 'spacing        = 5u'
-    print >> circos_out, 'size           = 15p'
-    print >> circos_out, 'show_label     = yes'
-    print >> circos_out, 'label_size     = 20p'
-    print >> circos_out, 'label_offset   = 10p'
-    print >> circos_out, 'format         = %d'
+    print >> circos_out, 'spacing          = 5u'
+    print >> circos_out, 'size             = 15p'
+    print >> circos_out, 'show_label       = yes'
+    print >> circos_out, 'label_size       = 20p'
+    print >> circos_out, 'label_offset     = 10p'
+    print >> circos_out, 'format           = %d'
     print >> circos_out, '</tick>'
     print >> circos_out, '</ticks>'
+
+    if options.indet_seq_histogram:
+        print >> circos_out, '<plots>'
+        print >> circos_out, 'type             = line'
+        print >> circos_out, 'thickness        = 2'
+        print >> circos_out, '<plot>'
+        print >> circos_out, 'max_gap          = 1u'
+        print >> circos_out, 'file             = %s' %options.indet_seq_histogram
+        print >> circos_out, 'color            = black'
+        print >> circos_out, 'min              = 0'
+        print >> circos_out, 'max              = 1'
+        print >> circos_out, 'r0               = 0.86r'
+        print >> circos_out, 'r1               = 0.92r'
+        print >> circos_out, 'fill_color       = vdgrey_a3'
+        print >> circos_out, '<rules>'
+        print >> circos_out, '<rule>'
+        print >> circos_out, 'condition        = var(value) > 0.5'
+        print >> circos_out, 'color            = red'
+        print >> circos_out, '</rule>'
+        print >> circos_out, '</rules>'
+        print >> circos_out, '</plot>'
+        print >> circos_out, '</plots>'
+
     print >> circos_out, '<image>\nfile  = %s_%s_%s.png' %(G0, G1, suffix)
     print >> circos_out, 'dir   = .\npng   = yes\nradius         = 1500p' 
     print >> circos_out, 'angle_offset      = -90'

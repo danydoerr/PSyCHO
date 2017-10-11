@@ -165,10 +165,23 @@ rule create_karyotypes:
         '{input.markers} > {output} 2> {log}'
 
 
+rule generate_indeterminate_regions_histogram:
+    input:
+        GENOMES
+    params:
+        window_size = config['pwsynteny_indet_regions_window_size']
+    output:
+        join(HIERARCHY_OUT, 'indet_regions_hist.txt')
+    shell:
+        PYEXEC + 'syn2circos.indet_regions' + PYSUF + ' -w {params.window_size} '
+        '{input} > {output}'
+        
+
 rule generate_circos_files:
     input:
         json = join(HIERARCHY_OUT, 'hierarchy_d%s.json' %config['psycho_delta']),
-        markers = join(MARKER_OUT, '{genome}.fna')
+        markers = join(MARKER_OUT, '{genome}.fna'),
+        indet_regions_hist = join(HIERARCHY_OUT, 'indet_regions_hist.txt')
     params:
         karyotype_dir = HIERARCHY_OUT,
         plot_params = config['pwsynteny_plot_params'],
@@ -179,8 +192,8 @@ rule generate_circos_files:
         join(HIERARCHY_OUT, '%s_{genome}_%s.links' %(REF, CIRCOS_PLOT_SUFFIX)),
     shell:
         PYEXEC + 'inctree2pwsynteny' + PYSUF + ' -k {params.karyotype_dir} ' 
-        '-o {params.out_dir} {params.plot_params} {input.json} '
-        '{wildcards.genome}'
+        '-o {params.out_dir} -i {input.indet_regions_hist} {params.plot_params}'
+        ' {input.json} {wildcards.genome}' 
 
 
 rule run_circos:
