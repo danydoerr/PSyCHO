@@ -167,7 +167,7 @@ def constructTeamDS(gene_orders, G, ref, delta):
             elif G.has_node((y, gi)):
                 # each element in L is of type (label, character)
                 cL.add((c, gi))
-            c += 1
+                c += 1
         
         L.append(cL)
 
@@ -1182,6 +1182,7 @@ if __name__ == '__main__':
 
     removeNonUniversalGenes(G, len(id2genomes))
     L, G = constructTeamDS(gene_orders, G, ref, options.delta)
+
     teams = findTeams(L, G, ref, options.delta)
 
     CI_instances = list()
