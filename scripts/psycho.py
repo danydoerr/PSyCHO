@@ -123,7 +123,7 @@ def removeNonUniversalGenes(G, n):
         LOG.info('iteration %s, current number of active genes: %s' %(i, len(G)))
         hasChanged = False
         i += 1
-        for v in G.nodes():
+        for v in list(G.nodes()):
             if len(set(map(lambda x: x[0], \
                     G.neighbors_iter(v))).difference((v[0], ))) + 1 < n:
                 G.remove_node(v)
@@ -1180,7 +1180,8 @@ if __name__ == '__main__':
             for gy in gys.keys():
                 G.add_edge((x, gx), (y, gy))
 
-    removeNonUniversalGenes(G, len(id2genomes))
+    G = removeNonUniversalGenes(G, len(id2genomes))
+
     L, G = constructTeamDS(gene_orders, G, ref, options.delta)
 
     teams = findTeams(L, G, ref, options.delta)
