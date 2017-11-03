@@ -11,16 +11,11 @@ GENOMES_DIR = config['genome_data_dir']
 GENOMES = sorted(filter(lambda x: basename(x).find('_') < 0, 
         glob('%s/*.fna' %GENOMES_DIR)))
 
-BLAST_DIR = config['blast_dir']
-
-BLAST_PARAMS = ' '.join((config['blast_params'], 
-        '-perc_identity %s' %config['sgmtn_alignment_ident']))
-
-BLAST_PARSTR = BLAST_PARAMS.replace('-', '').replace(' ', '_')
-ATOMS_OUT = join(config['atoms_out'], '%s_%s' %(config['blast_cmd'],
-        BLAST_PARSTR))
-CORES = snakemake.get_argument_parser().parse_args().cores or 1 
-BLAST_THREADS = int(max(1, CORES/len(GENOMES)))
+LASTZ_CMD  = config['lastz_cmd']
+LASTZ_PARAMS = config['lastz_params']
+LASTZ_PARSTR = LASTZ_PARAMS.replace('-', '').replace(' ', '_')
+ATOMS_OUT = join(config['atoms_out'], '%s%s' % (basename(LASTZ_CMD),
+        LASTZ_PARAMS and '_%s' %LASTZ_PARAMS or ''))
 
 MARKER_OUT = join(config['marker_dir'], '%s_ag%s_al%s_m%s' %(
         basename(ATOMS_OUT), config['sgmtn_alignment_maxgap'],
@@ -50,56 +45,27 @@ rule all:
                 GENOMES[x][:GENOMES[x].rfind('.')]) for x in
                 range(len(GENOMES)) if x != config['psycho_ref']])
 
-rule create_blast_db:
+rule create_all_fna:
     input:
         GENOMES
-    params:
-        dbtype = config['blast_db_type'],
-        title = 'BLAST database of marker sequences ' + 
-        ' '.join(GENOMES),
-        dbname = '%s/%s' %(config['atoms_out'], config['blast_db_name'])
     output:
-        expand('%s/%s.{dbfile}' %(config['atoms_out'], config['blast_db_name']), 
-                dbfile=config['blast_db_endings'])
-    log:
-        '%s/%s.log' %(config['atoms_out'], config['blast_db_name'])
+        temp('%s/_all.fna' %config['atoms_out'])
     shell:
-        'mkdir -p "%s";' %config['atoms_out'] + 
-        join(BLAST_DIR, config['mkblastdb_cmd']) + ' -in \"{input}\" '
-        '-hash_index -out {params.dbname} -dbtype {params.dbtype} -title '
-        '\"{params.title}\" -logfile {log}'
+        'mkdir -p "%s"; cat {input} > {output}' %config['atoms_out'] 
 
-
-rule run_blast:
+rule run_lastz:
     input:
-        markers_file = GENOMES_DIR + '/{genome}.fna',
-        blast_db = expand(join(config['atoms_out'], '%s.{dbfile}' %(
-                config['blast_db_name'])), dbfile=config['blast_db_endings'])
+        '%s/_all.fna' %config['atoms_out']
     params:
-        dbname = join(config['atoms_out'], config['blast_db_name']),
-        blast_params = BLAST_PARAMS
+        lastz = config['lastz_params']
     output:
-        temp(ATOMS_OUT + '_{genome,[^_]+}.psl')
+        temp(ATOMS_OUT + '.psl')
     log:
-        join(config['atoms_out'], 'blastn.log')
-    threads: 
-        BLAST_THREADS
+        join(config['atoms_out'], 'lastz.log')
     shell:
         'mkdir -p "%s";' %config['atoms_out']+
-        join(BLAST_DIR, config['blast_cmd']) + ' -db {params.dbname} '
-        '-num_threads {threads} {params.blast_params} < {input.markers_file} |' +
-        PYEXEC + 'blast2psl' + PYSUF +' > {output} 2> {log}'
-
-
-rule concat_psl:
-    input:
-        expand(ATOMS_OUT + '_{genome}.psl', genome=map(lambda x:
-                basename(x).rsplit('.', 1)[0], GENOMES))
-    output:
-        ATOMS_OUT + '.psl' 
-    shell:
-        'cat {input} > {output};' 
-
+        LASTZ_CMD + ' {params.lastz} {input}[multiple] | ' + 
+        '%s/lavToPsl /dev/stdin {output} 2> {log}' %config['kenttools_dir']
 
 rule atomizer:
     input:
@@ -193,6 +159,7 @@ rule generate_indeterminate_regions_histogram:
     output:
         join(HIERARCHY_OUT, 'indet_regions_hist.txt')
     shell:
+        'mkdir -p "%s"; ' %HIERARCHY_OUT + 
         PYEXEC + 'syn2circos.indet_regions' + PYSUF + ' -w {params.window_size} '
         '{input} > {output}'
         
