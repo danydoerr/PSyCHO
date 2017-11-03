@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter as ADHF
-from itertools import chain, combinations 
+from itertools import chain, combinations, izip, imap
 from sys import argv, stdout, stderr, exit
 from os.path import basename, join, abspath, relpath
 from Bio import SeqIO
@@ -21,9 +21,23 @@ LOG_FILENAME = '%s' %basename(argv[0]).rsplit('.py', 1)[0]
 TRANS_TABLE=maketrans('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',\
         'ANCNNNGNNNNNNNNNNNNTNNNNNMancnnngnnnnnnnnnnnntnnnnnn')
 DEFAULT_OUT_DIR = '.'
+DEFAULT_DUP_THRESHOLD = 11
 
 
-def readSegments(data):
+def readChr2GenomeMapping(*files):
+    res = dict()
+    for f in files:
+        gname = basename(f).rsplit('.', 1)[0]
+        for line in open(f):
+            if line.startswith('>'):
+                chrId = line.split()[0][1:]
+                res[chrId] = gname
+    return res
+
+def readSegments(data, chr2gMap, excludeDups=DEFAULT_DUP_THRESHOLD):
+
+    genomes = sorted(set(chr2gMap.values()))
+    g2pos = dict(izip(genomes, xrange(len(genomes))))
     res = dict()
     isHeader = True
 
@@ -35,15 +49,19 @@ def readSegments(data):
             continue
         if not res.has_key(line[0]):
             res[line[0]] = list()
-        segs.append((line[0], int(line[4]), int(line[5]), line[2]))
-        fam_members[line[2]] = fam_members.get(line[2], 0) + 1
+        segs.append((line[0], line[1], int(line[4]), int(line[5]), line[2]))
+        if not fam_members.has_key(line[2]):
+            fam_members[line[2]] = [0] * len(genomes)
+        fam_members[line[2]][g2pos[chr2gMap[line[0]]]] += 1
 
-    for chrx, start, stop, f in segs:
-        if fam_members[f] < 2:
+    for chrx, sid, start, stop, f in segs:
+        if sum(fam_members[f]) < 2 or any(imap(lambda x: x >= excludeDups,
+                fam_members[f])):
             continue
+        
         if not res.has_key(chrx):
             res[chrx] = list()
-        res[chrx].append((start, stop, f)) 
+        res[chrx].append((start, stop, sid, f)) 
 
     # make sure segments are sorted
     for v in res.values():
@@ -51,21 +69,20 @@ def readSegments(data):
     return res
 
 
-def partitionRecord(record, segments, fams, c=1):
+def partitionRecord(record, segments, fams):
     # assumes *sorted* segment list (function readSegments ensures that) 
     res = list()
-    for start, stop, f in segments:
+    for start, stop, sid, f in segments:
         rec = record[start:stop]
         name = record.id.replace('|', '.')
-        rec.id = '%s_%s|%s:%s|chromosome|%s' %(name, c, start, stop-1, name)
+        rec.id = '%s_%s|%s:%s|chromosome|%s' %(name, sid, start, stop-1, name)
         rec.description = ''
         rec.seq = Seq(str(rec.seq).translate(TRANS_TABLE),
                 Alphabet.generic_dna)
         res.append(rec) 
         if not fams.has_key(f):
             fams[f] = list()
-        fams[f].append((record.id, c))
-        c += 1
+        fams[f].append((record.id, sid))
     return res
 
 
@@ -125,11 +142,9 @@ def writeMarkers(fastaFiles, outDir, segments):
         gnames.append(Gx)
         chrs = list()
         markers = list()
-        c = 1
         for record in SeqIO.parse(open(f), 'fasta'):
             if segments.has_key(record.id):
-                recs = partitionRecord(record, segments[record.id], fams, c=c)
-                c += len(recs)
+                recs = partitionRecord(record, segments[record.id], fams)
                 if recs:
                     markers.extend(map(lambda x: x.id, recs))
                     SeqIO.write(recs, out, 'fasta')
@@ -151,10 +166,14 @@ if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=ADHF)
     parser.add_argument('-o', '--out_dir', default=DEFAULT_OUT_DIR, type=str,
             help='prefix of output filename')
+    parser.add_argument('-e', '--exclude_duplicates',
+            default=DEFAULT_DUP_THRESHOLD, type=int,
+            help='exclude markers belonging to families that occur <x> ' + \
+                    'or more times in any of the genomes.')
     parser.add_argument('-s', '--sort_genome_names', action='store_true', 
-            help='Rather than using the input argumnt order, Sort genomes ' + \
+            help='rather than using the input argumnt order, sort genomes ' + \
                     'names in alphabetical order prior to producing pairwise ' + \
-                    'similarity file names.')
+                    'similarity file names')
     parser.add_argument('atoms_file', type=str, help='file containing atoms')
     parser.add_argument('fasta_file', type=str, nargs='+', 
             help='fasta files with original genomic sequences')
@@ -171,7 +190,10 @@ if __name__ == '__main__':
     LOG.addHandler(cf)
     LOG.addHandler(ch)
 
-    segments = readSegments(open(args.atoms_file))
+    chr2gMap = readChr2GenomeMapping(*args.fasta_file)
+    segments = readSegments(open(args.atoms_file), chr2gMap,
+            args.exclude_duplicates)
+
     genomes, gMap, fams = writeMarkers(args.fasta_file, args.out_dir,
             segments)
     if args.sort_genome_names:
@@ -180,5 +202,6 @@ if __name__ == '__main__':
     writeGenomeMap(gMap, genomes, open(join(args.out_dir, GENOME_MAP_FILE),
         'w'))
 
+    import pdb; pdb.set_trace() 
     writePairwiseSimilarities(fams, genomes, gMap, args.out_dir)
 
