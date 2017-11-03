@@ -113,10 +113,13 @@ rule atomizer:
     output:
         ATOMS_OUT + '_ag%s_al%s_m%s.atoms' %(config['sgmtn_alignment_maxgap'],
             config['sgmtn_alignment_minlen'], config['marker_min_length'])
+    log:
+        ATOMS_OUT + '_ag%s_al%s_m%s.log' %(config['sgmtn_alignment_maxgap'],
+            config['sgmtn_alignment_minlen'], config['marker_min_length'])
     shell:
         config['segmentation_cmd'] + ' {input} --minLength {params.min_len} '
         '--minIdent {params.al_min_len} --minIdent {params.al_ident} --maxGap '
-        '{params.al_max_gap} > {output}'
+        '{params.al_max_gap} > {output} 2> {log}'
 
 #rule atomizer_orig:
 #    input:
