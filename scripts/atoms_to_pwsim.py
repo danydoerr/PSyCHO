@@ -202,6 +202,5 @@ if __name__ == '__main__':
     writeGenomeMap(gMap, genomes, open(join(args.out_dir, GENOME_MAP_FILE),
         'w'))
 
-    import pdb; pdb.set_trace() 
     writePairwiseSimilarities(fams, genomes, gMap, args.out_dir)
 
