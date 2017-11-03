@@ -143,14 +143,15 @@ rule atoms_to_markers:
             config['marker_min_length']),
         fasta_files = GENOMES
     params:
-        out_dir = MARKER_OUT
+        out_dir = MARKER_OUT,
+        reps  = config['marker_exclude_duplicates']
     output:
         MARKERS_FILES,
         PW_SIMS,
         GENOME_MAP_FILE
     shell:
-        PYEXEC + 'atoms_to_pwsim' + PYSUF + ' -o {params.out_dir} '
-        '{input.atoms_file} {input.fasta_files}'
+        PYEXEC + 'atoms_to_pwsim' + PYSUF + ' -o {params.out_dir} -e '
+        '{params.reps} {input.atoms_file} {input.fasta_files}'
 
 
 rule run_psycho:
