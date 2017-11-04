@@ -1058,12 +1058,12 @@ def gos2mseq(goss, id2genomes, gMap):
 
     for gos in goss:
         for y in xrange(len(gos)):
-            res[y] = list()
+            res[y].append(list())
             for gy in gos[y]:
                 if gy == CONTIG_BOUNDARY:
-                    res[y].append(CONTIG_BOUNDARY_KEY)
+                    res[y][-1].append(CONTIG_BOUNDARY_KEY)
                 else:
-                    res[y].append(gy2m[(y, '%s_%s' %gy)])
+                    res[y][-1].append(gy2m[(y, '%s_%s' %gy)])
     return res
 
 
