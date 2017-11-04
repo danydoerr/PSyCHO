@@ -134,25 +134,16 @@ def removeNonUniversalGenes(G, n):
 
 def establish_linear_genome_order(genes):
 
-    chromosomes = dict()
-    for (chr1, g1i) in genes:
-        if not chromosomes.has_key(chr1):
-            chromosomes[chr1] = [maxint, 0]
-        if g1i < chromosomes[chr1][0]:
-            chromosomes[chr1][0] = g1i
-        if g1i > chromosomes[chr1][1]:
-            chromosomes[chr1][1] = g1i
-
-    chrnames = sorted(chromosomes.keys())
-    
-    g = list()
-    for k in chrnames:
-        # stopper for extend()
-        g.append(CONTIG_BOUNDARY)
-        g.extend([(k, i) for i in xrange(chromosomes[k][0], chromosomes[k][1]+1)])
-    # stopper for extend()
-    g.append(CONTIG_BOUNDARY)
-    return  g
+    pChr = None
+    res = list()
+    for chr1, x in sorted(genes):
+        if chr1 != pChr:
+            res.append(CONTIG_BOUNDARY)
+            pChr = chr1
+        res.append((chr1, x))
+    if res:
+        res.append(CONTIG_BOUNDARY)
+    return res
 
 
 def constructTeamDS(gene_orders, G, ref, delta): 
@@ -1056,19 +1047,23 @@ def constructInclusionTree(strong_cis, pos, gene_orders, bounds, n, ref):
     return subtrees
 
 
-def gos2mseq(goss, gMap, id2genomes):
+def gos2mseq(goss, id2genomes, gMap):
 
     res = [list() for _ in id2genomes]
 
+    gy2m = dict()
+    for y in xrange(len(id2genomes)):
+        for m in gMap[id2genomes[y]][GM_ACTV_GNS_KEY]:
+            gy2m[(y, m.split('|', 1)[0])] = m
+
     for gos in goss:
         for y in xrange(len(gos)):
-            marker_order = gMap[id2genomes[y]][GM_ACTV_GNS_KEY]
-            res[y].append(list())
-            for chrx, x in gos[y]:
-                if (chrx, x) == CONTIG_BOUNDARY:
-                    res[y][-1].append(CONTIG_BOUNDARY_KEY)
+            res[y] = list()
+            for gy in gos[y]:
+                if gy == CONTIG_BOUNDARY:
+                    res[y].append(CONTIG_BOUNDARY_KEY)
                 else:
-                    res[y][-1].append(marker_order[x-1])
+                    res.append(gy2m[(y, '%s_%s' %gy)])
     return res
 
 
@@ -1203,8 +1198,8 @@ if __name__ == '__main__':
 #                    id2genomes, ref, options.delta)
 
             gos, pos, bounds = constructCIDS(L, G, ref, options.delta)
-            cov = reduce(lambda x,y: x+y, map(lambda z: [float(gos[z][w[1]][1] \
-                    -gos[z][w[0]][1]+1)/(w[1]-w[0]+1) for w in bounds[z]], \
+            cov = reduce(lambda x,y: x+y, map(lambda z: [float(g2pos[(z, gos[z][w[1]])] \
+                    -g2pos[(z, gos[z][w[0]])]+1)/(w[1]-w[0]+1) for w in bounds[z]], \
                     xrange(len(bounds))))
             if len(set(map(len, bounds))) != 1 or any(x > options.cov for x
                     in cov):
@@ -1285,7 +1280,7 @@ if __name__ == '__main__':
     outDict['genome_names'] = id2genomes 
     outDict['ref_id'] = ref
     outDict['recovered_markers'] = new_markers
-    outDict['marker_seq_list'] = gos2mseq(goss, gMap, id2genomes)
+    outDict['marker_seq_list'] = gos2mseq(goss, id2genomes, gMap)
     #outDict['intervals'] = strong_ciss
     outDict['raw_sbfs'] = ciss
     if options.outFile:
