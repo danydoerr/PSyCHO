@@ -590,7 +590,7 @@ def constructCIDS(L, G, ref, delta):
     pos.update(((y, ref), list()) for y in ids)
 
     p = 0
-    prev = -delta
+    prev = -delta-1
     cur = L[ref].head
     prev_b = None
     while cur != None:
@@ -619,7 +619,7 @@ def constructCIDS(L, G, ref, delta):
 
         Gx = list()
         p = 0
-        prev = -delta
+        prev = -delta-1
         prev_b = None
         cur = L[x].head
         while cur != None:
@@ -1063,7 +1063,7 @@ def gos2mseq(goss, id2genomes, gMap):
                 if gy == CONTIG_BOUNDARY:
                     res[y].append(CONTIG_BOUNDARY_KEY)
                 else:
-                    res.append(gy2m[(y, '%s_%s' %gy)])
+                    res[y].append(gy2m[(y, '%s_%s' %gy)])
     return res
 
 
