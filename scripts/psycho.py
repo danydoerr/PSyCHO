@@ -125,7 +125,7 @@ def removeNonUniversalGenes(G, n):
         i += 1
         for v in list(G.nodes()):
             if len(set(map(lambda x: x[0], \
-                    G.neighbors_iter(v))).difference((v[0], ))) + 1 < n:
+                    G.neighbors(v))).difference((v[0], ))) + 1 < n:
                 G.remove_node(v)
                 hasChanged = True
     LOG.info('Finished')
