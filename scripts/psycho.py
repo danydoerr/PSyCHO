@@ -163,7 +163,7 @@ def constructTeamDS(gene_orders, G, ref, delta):
         L.append(cL)
 
     # remove all edges from G that are not between reference and non-reference
-    for (u, v) in G.edges():
+    for (u, v) in list(G.edges()):
         if (u[0] == ref) == (v[0] == ref):
             G.remove_edge(u, v) 
     return L, G
@@ -250,7 +250,7 @@ def division(L, G, B, ref):
             elif x != ref and cids.count(x) > 1 and not Bset.issuperset(z[1] \
                     for z in G.neighbors(v) if z[0] == x):
                 X1.add(cur.data)
-                for u in G.neighbors(v):
+                for u in list(G.neighbors(v)):
                     if u[0] != x:
                         GX.add_edge(v, u)
                     elif u[1] in Bset:
@@ -265,9 +265,9 @@ def division(L, G, B, ref):
         cur = nxt
     LX[ref] = X1
 
-    for v in nx.isolates(G):
+    for v in list(nx.isolates(G)):
         G.remove_node(v)
-    for v in nx.isolates(GX):
+    for v in list(nx.isolates(GX)):
         GX.remove_node(v)
 
 
