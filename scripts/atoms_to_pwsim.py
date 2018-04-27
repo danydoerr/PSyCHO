@@ -82,7 +82,7 @@ def partitionRecord(record, segments, fams):
         res.append(rec) 
         if not fams.has_key(f):
             fams[f] = list()
-        fams[f].append((record.id, sid))
+        fams[f].append((record.id, int(sid)))
     return res
 
 

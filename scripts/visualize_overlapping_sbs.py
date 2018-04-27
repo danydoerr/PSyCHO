@@ -15,7 +15,7 @@ from matplotlib.patches import Rectangle, Polygon
 
 from psycho import dict2hierarchy 
 from pairwise_similarities import readDists, reverseDistMap, readGenomeMap, \
-        PAT_POS, PAT_CHR, GENOME_MAP_FILE, GM_ACTV_GNS_KEY
+        PAT_POS, PAT_ID, PAT_CHR, GENOME_MAP_FILE, GM_ACTV_GNS_KEY
 
 DRAW_SEG_HEIGHT = 100
 DRAW_SCALE = 0.1
@@ -183,21 +183,16 @@ def drawOverlappingSBFS(genomes, msl, dists, gMap, i, j, source, target, ax):
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_visible(False)
 
-    plt.tick_params(top='off', bottom='on', right='off', labelbottom='on')
+    plt.tick_params(top=False, bottom=True, right=False, labelbottom=True)
     ax.set_yticks([-GAP_Y/2.*DRAW_SCALE, GAP_Y/2.*DRAW_SCALE])
     ax.set_yticklabels([genomes[target], genomes[source]], fontsize=16)
     
 
-    gene2id = dict()
-    for g in genomes:
-        gene2id[g] = dict((gMap[g][GM_ACTV_GNS_KEY][i],
-            (PAT_CHR.match(gMap[g][GM_ACTV_GNS_KEY][i]).group(1), i+1)) for i in
-            xrange(len(gMap[g][GM_ACTV_GNS_KEY])))
-
-
     pwDist = dists[(genomes[source], genomes[target])]
     for gs in chain(sgi, sgj):
-        sstart, send = map(int, PAT_POS.match(gs).groups()[:2])
+        sstart, send = map(int, PAT_POS.match(gs).group(1,2))
+        chrx, gid = PAT_ID.match(gs).group(1,2)
+        gid = int(gid)
         csi = gs in sgi
         csj = gs in sgj
 
@@ -205,8 +200,15 @@ def drawOverlappingSBFS(genomes, msl, dists, gMap, i, j, source, target, ax):
         if csj:
            OFFSET_S = OFFSET_SJ 
 
-        for gt_id, (_, w) in pwDist[gene2id[genomes[source]][gs]].items():
-            gt = gMap[genomes[target]][GM_ACTV_GNS_KEY][gt_id[1]-1]
+        gene2id = dict()
+        for g in genomes:
+            gene2id[g] = dict((gMap[g][GM_ACTV_GNS_KEY][i],
+                (PAT_CHR.match(gMap[g][GM_ACTV_GNS_KEY][i]).group(1), i+1)) for i in
+                xrange(len(gMap[g][GM_ACTV_GNS_KEY])))
+
+
+        for gt_id, (_, w) in pwDist[(chrx, gid)].items():
+            gt = gMap[genomes[target]][GM_ACTV_GNS_KEY][gene2id[genomes[source]][gs][1]-1]
             tstart, tend = map(int, PAT_POS.match(gt).groups()[:2])
             cti = gt in tgi
             ctj = gt in tgj
