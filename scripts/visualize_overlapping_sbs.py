@@ -200,15 +200,14 @@ def drawOverlappingSBFS(genomes, msl, dists, gMap, i, j, source, target, ax):
         if csj:
            OFFSET_S = OFFSET_SJ 
 
-        gene2id = dict()
-        for g in genomes:
-            gene2id[g] = dict((gMap[g][GM_ACTV_GNS_KEY][i],
-                (PAT_CHR.match(gMap[g][GM_ACTV_GNS_KEY][i]).group(1), i+1)) for i in
-                xrange(len(gMap[g][GM_ACTV_GNS_KEY])))
+        id2pos = dict()
 
-
+        __f__ = lambda x: (x[0], int(x[1]))
+        for gi, g in enumerate(genomes):
+            id2pos[gi] = dict((__f__(PAT_ID.match(x).group(1,2)), i)  for i, x \
+                    in enumerate(gMap[g][GM_ACTV_GNS_KEY]))
         for gt_id, (_, w) in pwDist[(chrx, gid)].items():
-            gt = gMap[genomes[target]][GM_ACTV_GNS_KEY][gene2id[genomes[source]][gs][1]-1]
+            gt = gMap[genomes[target]][GM_ACTV_GNS_KEY][id2pos[target][gt_id]]
             tstart, tend = map(int, PAT_POS.match(gt).groups()[:2])
             cti = gt in tgi
             ctj = gt in tgj
@@ -255,6 +254,7 @@ def drawOverlappingSBFS(genomes, msl, dists, gMap, i, j, source, target, ax):
                 p = Polygon(plt.array(xy), closed=True, fill=True, \
                         edgecolor='none', facecolor='g', alpha=w)
                 ax.add_patch(p)
+
 
 if __name__ == '__main__':
     parser = ArgumentParser(formatter_class=ADHF)
@@ -316,8 +316,8 @@ if __name__ == '__main__':
                 continue
 
             ax = next(ax_it)
-            drawOverlappingSBFS(genomes, marker_seq_list, dists, gMap, i, j, source,
-                    target, ax)
+            drawOverlappingSBFS(genomes, marker_seq_list, dists, gMap, i, j,
+                    source, target, ax)
 
         plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
         f.savefig(out, format='pdf')
