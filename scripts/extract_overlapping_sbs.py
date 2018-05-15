@@ -101,10 +101,10 @@ if __name__ == '__main__':
     out = stdout 
     for (i, j), o in overlapping_sbs.items():
         for ig, g in enumerate(genomes):
-            start_si= PAT_POS.match(msl[ig][i][1]).group(1)
-            end_si = PAT_POS.match(msl[ig][i][-2]).group(2)
-            start_sj = PAT_POS.match(msl[ig][j][1]).group(1)
-            end_sj = PAT_POS.match(msl[ig][j][-2]).group(2)
+            start_si= PAT_ID.match(msl[ig][i][1]).group(2)
+            end_si = PAT_ID.match(msl[ig][i][-2]).group(2)
+            start_sj = PAT_ID.match(msl[ig][j][1]).group(2)
+            end_sj = PAT_ID.match(msl[ig][j][-2]).group(2)
 
             if ig:
                 out.write('\t')
